@@ -43,7 +43,7 @@ if exist %WRAPPER_JAR% (
 ) else (
     @REM Download the maven-wrapper.jar
     echo Downloading Maven Wrapper...
-    powershell -Command "Invoke-WebRequest -Uri %WRAPPER_URL% -OutFile %WRAPPER_JAR%"
+    powershell -Command "Invoke-WebRequest -Uri %WRAPPER_URL% -OutFile '%MAVEN_PROJECTBASEDIR%\.mvn\wrapper\maven-wrapper.jar'"
     "%JAVA_EXE%" %MAVEN_OPTS% ^
       -jar %WRAPPER_JAR% %*
 )

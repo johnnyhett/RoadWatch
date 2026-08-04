@@ -1,0 +1,1 @@
+package org.springframework.scheduling.annotation; import java.lang.annotation.*; @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE}) @Retention(RetentionPolicy.RUNTIME) public @interface Scheduled { long fixedRate() default -1; String cron() default ""; }

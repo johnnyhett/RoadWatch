@@ -1,12 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Network, TrendingUp, Grid } from 'lucide-react';
+import { Network, TrendingUp, Grid, ShieldCheck } from 'lucide-react';
 import AssociationGraph from '@/components/analytics/AssociationGraph';
 import RuleTable from '@/components/analytics/RuleTable';
 import FactorHeatmap from '@/components/analytics/FactorHeatmap';
+import SafetyAuditDrawer from '@/components/analytics/SafetyAuditDrawer';
 
 export default function AnalyticsPage() {
+  const [auditOpen, setAuditOpen] = useState(false);
+
   return (
     <div className="w-full h-full overflow-y-auto p-4 space-y-4 bg-[#0a0a0f]">
       {/* Page Header */}
@@ -17,7 +21,17 @@ export default function AnalyticsPage() {
           </h1>
           <p className="text-xs text-white/60">FP-Growth association rule mining and multi-factor co-occurrence matrices.</p>
         </div>
+
+        <button
+          onClick={() => setAuditOpen(true)}
+          className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-300 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <span>Export Safety Audit</span>
+        </button>
       </div>
+
+      <SafetyAuditDrawer isOpen={auditOpen} onClose={() => setAuditOpen(false)} />
 
       <div className="grid grid-cols-12 gap-4">
         {/* Main Association Network Topology */}

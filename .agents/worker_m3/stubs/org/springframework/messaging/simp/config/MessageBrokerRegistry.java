@@ -1,0 +1,1 @@
+package org.springframework.messaging.simp.config; public class MessageBrokerRegistry { public void enableSimpleBroker(String... prefixes) {} public void setApplicationDestinationPrefixes(String... prefixes) {} }

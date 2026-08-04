@@ -13,12 +13,29 @@ function MapController({ center, zoom }: { center?: [number, number]; zoom?: num
     if (center && center[0] !== 0 && center[1] !== 0) {
       map.flyTo(center, zoom || 14, {
         animate: true,
-        duration: 1.6,
+        duration: 0.7,
+        easeLinearity: 0.25,
       });
     }
   }, [center, zoom, map]);
   return null;
 }
+
+const createPinIcon = (color: string, label: string) => {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="24" height="32">
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 20 12 20s12-11 12-20c0-6.63-5.37-12-12-12z" fill="${color}" stroke="#ffffff" stroke-width="1.5"/>
+      <circle cx="12" cy="12" r="5" fill="#ffffff"/>
+    </svg>
+  `;
+  return L.divIcon({
+    html: svg,
+    className: 'custom-route-pin',
+    iconSize: [24, 32],
+    iconAnchor: [12, 32],
+    popupAnchor: [0, -28],
+  });
+};
 
 // Clean severity SVG marker icons
 const createCustomIcon = (severity: number) => {
@@ -217,14 +234,26 @@ export default function AppMap({
 
       {/* Layer 3: Safest vs Direct Route Polylines */}
       {safestRoute && safestRoute.path && safestRoute.path.length > 0 && (
-        <Polyline
-          positions={safestRoute.path}
-          pathOptions={{
-            color: '#10b981',
-            weight: 5,
-            opacity: 0.9,
-          }}
-        />
+        <>
+          <Polyline
+            positions={safestRoute.path}
+            pathOptions={{
+              color: '#10b981',
+              weight: 5,
+              opacity: 0.9,
+            }}
+          />
+          <Marker position={safestRoute.path[0]} icon={createPinIcon('#10b981', 'Origin')}>
+            <Popup>
+              <span className="font-bold text-emerald-400 text-xs">Start (Origin)</span>
+            </Popup>
+          </Marker>
+          <Marker position={safestRoute.path[safestRoute.path.length - 1]} icon={createPinIcon('#ef4444', 'Destination')}>
+            <Popup>
+              <span className="font-bold text-red-400 text-xs">Destination</span>
+            </Popup>
+          </Marker>
+        </>
       )}
 
       {fastestRoute && fastestRoute.path && fastestRoute.path.length > 0 && (

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Radio, Navigation, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Radio, Navigation, AlertTriangle, ChevronRight, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface IncidentAlert {
   id: string;
@@ -18,22 +19,42 @@ interface LiveTickerProps {
 }
 
 export default function LiveTicker({ onFlyTo }: LiveTickerProps) {
+  const { latestEvent, isConnected } = useWebSocket('/topic/incidents/live');
+
   const [alerts, setAlerts] = useState<IncidentAlert[]>([
-    { id: '1', time: '1m ago', message: 'High-risk collision reported near Central Junction', lat: 6.6885, lng: -1.6244, type: 'accident' },
+    { id: '1', time: '1m ago', message: 'High-risk collision reported near Central Junction Hub', lat: 6.6885, lng: -1.6244, type: 'accident' },
     { id: '2', time: '3m ago', message: 'Rain hazard & unlit surface increasing crash probability', lat: 6.7050, lng: -1.6050, type: 'hazard' },
     { id: '3', time: '5m ago', message: 'HDBSCAN identified high-risk cluster formation on Highway Bypass', lat: 6.6745, lng: -1.5714, type: 'blackspot' },
   ]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Prepend live incoming STOMP events to feed
+  useEffect(() => {
+    if (latestEvent && latestEvent.incident) {
+      const inc = latestEvent.incident;
+      const newAlert: IncidentAlert = {
+        id: latestEvent.eventId || String(Date.now()),
+        time: 'JUST NOW',
+        message: `EMERGENCY TELEMETRY: ${latestEvent.predictedSeverity || 'HIGH'} severity incident at (${inc.latitude?.toFixed(4)}, ${inc.longitude?.toFixed(4)}) - ${inc.weather_condition || 'Clear'}`,
+        lat: inc.latitude || 6.6885,
+        lng: inc.longitude || -1.6244,
+        type: 'accident',
+      };
+
+      setAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)].slice(0, 10));
+      setCurrentIndex(0);
+    }
+  }, [latestEvent]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % alerts.length);
-    }, 6000);
+    }, 5000);
     return () => clearInterval(timer);
   }, [alerts.length]);
 
-  const current = alerts[currentIndex];
+  const current = alerts[currentIndex] || alerts[0];
 
   const handleFly = () => {
     if (onFlyTo && current) {
@@ -43,15 +64,18 @@ export default function LiveTicker({ onFlyTo }: LiveTickerProps) {
 
   return (
     <div className="glass-card px-4 py-2 flex items-center justify-between gap-3 bg-[#0d1117]/95 border-white/15 shadow-2xl rounded-xl">
-      {/* Feed Identifier */}
+      {/* Feed Identifier & STOMP Status Indicator */}
       <div className="flex items-center gap-2 shrink-0 border-r border-white/10 pr-3">
         <span className="relative flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500" />
+          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isConnected ? 'bg-emerald-400' : 'bg-cyan-400'}`} />
+          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isConnected ? 'bg-emerald-500' : 'bg-cyan-500'}`} />
         </span>
         <div className="flex items-center gap-1.5 text-xs font-bold text-white font-mono">
           <Radio className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Incident Feed</span>
+          <span className="hidden sm:inline">Emergency Telemetry</span>
+          <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-[9px] font-mono border border-cyan-500/30">
+            {isConnected ? 'LIVE WS' : 'FEED ACTIVE'}
+          </span>
         </div>
       </div>
 
@@ -89,3 +113,4 @@ export default function LiveTicker({ onFlyTo }: LiveTickerProps) {
     </div>
   );
 }
+

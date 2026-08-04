@@ -39,6 +39,7 @@ export default function RouteForm({ onComputeRoute, loading = false }: RouteForm
 
   const [beta, setBeta] = useState(0.7); // Safety weight
   const [useGpsOrigin, setUseGpsOrigin] = useState(false);
+  const [mode, setMode] = useState<'car' | 'motorcycle' | 'bicycle' | 'pedestrian'>('car');
 
   const originRef = useRef<HTMLDivElement>(null);
   const destRef = useRef<HTMLDivElement>(null);
@@ -141,11 +142,40 @@ export default function RouteForm({ onComputeRoute, loading = false }: RouteForm
       destination: destCoords,
       alpha: 1 - beta,
       beta,
+      mode,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="glass-card p-4 space-y-4 bg-[#0d1117]/90 border-white/15">
+      {/* Travel Mode Selector */}
+      <div className="space-y-1">
+        <label className="text-[10px] text-cyan-400 font-semibold uppercase tracking-wider block font-mono">
+          Multi-Modal Transport Mode
+        </label>
+        <div className="grid grid-cols-4 gap-1 text-xs">
+          {[
+            { id: 'car', label: '🚗 Car' },
+            { id: 'motorcycle', label: '🏍️ Moto' },
+            { id: 'bicycle', label: '🚲 Bike' },
+            { id: 'pedestrian', label: '🚶 Walk' },
+          ].map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMode(m.id as any)}
+              className={`py-1.5 rounded-lg text-[11px] font-mono transition-all border ${
+                mode === m.id
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold shadow-[0_0_8px_rgba(0,212,255,0.2)]'
+                  : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-3">
         {/* Origin Search */}
         <div ref={originRef} className="space-y-1 relative">
@@ -276,3 +306,4 @@ export default function RouteForm({ onComputeRoute, loading = false }: RouteForm
     </form>
   );
 }
+

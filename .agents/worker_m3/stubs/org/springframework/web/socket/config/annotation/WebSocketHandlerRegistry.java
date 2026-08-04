@@ -1,0 +1,1 @@
+package org.springframework.web.socket.config.annotation; import org.springframework.web.socket.handler.TextWebSocketHandler; public interface WebSocketHandlerRegistry { WebSocketHandlerRegistration addHandler(TextWebSocketHandler handler, String... paths); interface WebSocketHandlerRegistration { WebSocketHandlerRegistration setAllowedOrigins(String... origins); } }

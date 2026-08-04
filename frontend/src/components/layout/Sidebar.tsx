@@ -15,7 +15,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-14 flex flex-col items-center py-5 bg-[#0d1117] z-40 border-r border-white/10 shrink-0">
+    <aside className="w-14 flex flex-col items-center py-5 glass-panel z-40 border-r border-white/10 shrink-0">
       <div className="flex flex-col gap-4">
         {links.map((link) => {
           const isActive = pathname === link.path;

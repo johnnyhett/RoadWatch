@@ -20,13 +20,23 @@ export default function RouteComparison({ comparison }: RouteComparisonProps) {
 
   const safest = comparison.safest_route;
   const fastest = comparison.fastest_route;
+  const mode = safest.mode || 'car';
+  const modeLabel = mode === 'motorcycle' ? '🏍️ Motorcycle' : mode === 'bicycle' ? '🚲 Bicycle' : mode === 'pedestrian' ? '🚶 Pedestrian' : '🚗 Car';
 
   const riskReduction = Math.round(
-    ((fastest.total_risk - safest.total_risk) / fastest.total_risk) * 100
+    ((fastest.total_risk - safest.total_risk) / (fastest.total_risk || 1)) * 100
   );
 
   return (
     <div className="space-y-3">
+      {/* Mode Indicator Pill */}
+      <div className="flex items-center justify-between px-1 text-xs text-white/60 font-mono">
+        <span>Active Travel Profile:</span>
+        <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
+          {modeLabel} Mode
+        </span>
+      </div>
+
       {/* Recommended Safest Route Card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}

@@ -1,57 +1,91 @@
 package com.taprs.infrastructure.ml;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.taprs.application.port.out.IncidentRepositoryPort;
 import com.taprs.application.port.out.MlEnginePort;
 import com.taprs.domain.model.*;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 @Component
 public class MlEngineAdapter implements MlEnginePort {
 
     private final WebClient webClient;
+    private final IncidentRepositoryPort incidentRepository;
 
-    public MlEngineAdapter(WebClient.Builder webClientBuilder, @Value("${ml-engine.base-url}") String baseUrl) {
+    public record BlackspotsResponse(@JsonProperty("blackspots") List<Blackspot> blackspots) {}
+    public record AssociationRulesResponse(@JsonProperty("rules") List<AssociationRule> rules) {}
+
+    public MlEngineAdapter(WebClient.Builder webClientBuilder,
+                           @Value("${ml-engine.base-url}") String baseUrl,
+                           IncidentRepositoryPort incidentRepository) {
         this.webClient = webClientBuilder.baseUrl(baseUrl).build();
+        this.incidentRepository = incidentRepository;
     }
 
     @Override
     public List<Blackspot> findBlackspots() {
-        return webClient.post()
-                .uri("/api/v1/analytics/blackspots")
+        List<Incident> incidents = incidentRepository.findAll();
+        Map<String, Object> request = Map.of(
+            "incidents", incidents,
+            "min_cluster_size", 5
+        );
+
+        BlackspotsResponse response = webClient.post()
+                .uri("/api/v1/clustering/blackspots")
+                .bodyValue(request)
                 .retrieve()
-                .bodyToFlux(Blackspot.class)
-                .collectList()
+                .bodyToMono(BlackspotsResponse.class)
                 .block();
+
+        return response != null && response.blackspots() != null ? response.blackspots() : List.of();
     }
 
     @Override
     public Map<String, Object> generateHeatmap() {
+        List<Incident> incidents = incidentRepository.findAll();
+        Map<String, Object> request = Map.of(
+            "incidents", incidents,
+            "grid_resolution", 100
+        );
+
         return webClient.post()
-                .uri("/api/v1/analytics/heatmap")
+                .uri("/api/v1/density/heatmap")
+                .bodyValue(request)
                 .retrieve()
-                .bodyToMono(Map.class)
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .block();
     }
 
     @Override
     public List<AssociationRule> mineAssociations() {
-        return webClient.post()
-                .uri("/api/v1/analytics/associations")
+        List<Incident> incidents = incidentRepository.findAll();
+        Map<String, Object> request = Map.of(
+            "incidents", incidents,
+            "min_support", 0.05,
+            "min_confidence", 0.3
+        );
+
+        AssociationRulesResponse response = webClient.post()
+                .uri("/api/v1/association/rules")
+                .bodyValue(request)
                 .retrieve()
-                .bodyToFlux(AssociationRule.class)
-                .collectList()
+                .bodyToMono(AssociationRulesResponse.class)
                 .block();
+
+        return response != null && response.rules() != null ? response.rules() : List.of();
     }
 
     @Override
     public TemporalPattern getTemporalPatterns() {
         return webClient.get()
-                .uri("/api/v1/analytics/temporal")
+                .uri("/api/v1/temporal/patterns")
                 .retrieve()
                 .bodyToMono(TemporalPattern.class)
                 .block();
@@ -59,14 +93,20 @@ public class MlEngineAdapter implements MlEnginePort {
 
     @Override
     public RiskPrediction predictRisk(double lat, double lng, String time, String weather) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("latitude", lat);
-        request.put("longitude", lng);
-        request.put("timestamp", time);
-        request.put("weatherCondition", weather);
-        
+        Map<String, Object> features = new HashMap<>();
+        features.put("latitude", lat);
+        features.put("longitude", lng);
+        features.put("timestamp", time);
+        features.put("weatherCondition", weather);
+        return predictRisk(features);
+    }
+
+    @Override
+    public RiskPrediction predictRisk(Map<String, Object> features) {
+        Map<String, Object> request = Map.of("features", features);
+
         return webClient.post()
-                .uri("/api/v1/predictions/risk")
+                .uri("/api/v1/prediction/risk")
                 .bodyValue(request)
                 .retrieve()
                 .bodyToMono(RiskPrediction.class)
@@ -74,18 +114,19 @@ public class MlEngineAdapter implements MlEnginePort {
     }
 
     @Override
-    public SafetyRoute computeSafestRoute(double startLat, double startLng, double endLat, double endLng) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("startLatitude", startLat);
-        request.put("startLongitude", startLng);
-        request.put("endLatitude", endLat);
-        request.put("endLongitude", endLng);
-        
+    public RouteComparison computeSafestRoute(double startLat, double startLng, double endLat, double endLng, double alpha, double beta) {
+        Map<String, Object> request = Map.of(
+            "origin", List.of(startLat, startLng),
+            "destination", List.of(endLat, endLng),
+            "alpha", alpha,
+            "beta", beta
+        );
+
         return webClient.post()
-                .uri("/api/v1/routes/safest")
+                .uri("/api/v1/routing/safest")
                 .bodyValue(request)
                 .retrieve()
-                .bodyToMono(SafetyRoute.class)
+                .bodyToMono(RouteComparison.class)
                 .block();
     }
 }

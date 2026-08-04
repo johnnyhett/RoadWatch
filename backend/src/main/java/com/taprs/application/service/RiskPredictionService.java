@@ -5,6 +5,8 @@ import com.taprs.application.port.out.MlEnginePort;
 import com.taprs.domain.model.RiskPrediction;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Service
 public class RiskPredictionService implements PredictRiskUseCase {
 
@@ -17,5 +19,10 @@ public class RiskPredictionService implements PredictRiskUseCase {
     @Override
     public RiskPrediction predictRisk(double lat, double lng, String time, String weather) {
         return mlEnginePort.predictRisk(lat, lng, time, weather);
+    }
+
+    @Override
+    public RiskPrediction predictRisk(Map<String, Object> features) {
+        return mlEnginePort.predictRisk(features);
     }
 }

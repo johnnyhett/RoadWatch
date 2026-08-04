@@ -32,18 +32,38 @@ class RiskModel:
         
     def predict(self, features: dict):
         try:
-            df = pd.DataFrame([features])
-            df = df.rename(columns={"weather": "weather_condition", "light": "light_condition", "road_type": "road_classification", "junction": "junction_detail"})
+            norm = {}
+            norm['weather_condition'] = str(features.get('weather_condition') or features.get('weatherCondition') or features.get('weather') or "Clear")
+            norm['light_condition'] = str(features.get('light_condition') or features.get('lightCondition') or features.get('light') or "Daylight")
+            norm['road_classification'] = str(features.get('road_classification') or features.get('roadClassification') or features.get('road_type') or features.get('roadType') or "A_Road")
             
-            # Default values if missing
-            if 'hour' not in df.columns: df['hour'] = 14
-            if 'day_of_week' not in df.columns: df['day_of_week'] = 2
+            try:
+                norm['speed_limit'] = int(features.get('speed_limit') or features.get('speedLimit') or 30)
+            except Exception:
+                norm['speed_limit'] = 30
+                
+            norm['junction_detail'] = str(features.get('junction_detail') or features.get('junctionDetail') or features.get('junction') or "Not_At_Junction")
+
+            ts = features.get('timestamp') or features.get('time')
+            if ts:
+                try:
+                    dt = pd.to_datetime(ts)
+                    norm['hour'] = int(dt.hour)
+                    norm['day_of_week'] = int(dt.dayofweek)
+                except Exception:
+                    norm['hour'] = int(features.get('hour', 14))
+                    norm['day_of_week'] = int(features.get('day_of_week', 2))
+            else:
+                norm['hour'] = int(features.get('hour', 14))
+                norm['day_of_week'] = int(features.get('day_of_week', 2))
+
+            df = pd.DataFrame([norm])
             
             for col, le in self.label_encoders.items():
                 if col in df.columns:
                     try:
                         df[col] = le.transform(df[col])
-                    except:
+                    except Exception:
                         df[col] = 0
                         
             # Ensure correct feature ordering

@@ -87,6 +87,7 @@ public class IncidentStreamHandler {
         message.put("timestamp", Instant.now().toString());
 
         messagingTemplate.convertAndSend("/topic/incidents/live", message);
+        messagingTemplate.convertAndSend("/topic/telemetry/live", message);
     }
 
     private int pickWeightedSeverity() {

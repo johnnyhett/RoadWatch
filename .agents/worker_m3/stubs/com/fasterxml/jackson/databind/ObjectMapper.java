@@ -1,0 +1,1 @@
+package com.fasterxml.jackson.databind; import com.fasterxml.jackson.core.type.TypeReference; import java.io.File; public class ObjectMapper { public <T> T readValue(File src, TypeReference<T> valueTypeRef) throws Exception { return null; } public String writeValueAsString(Object value) throws Exception { return ""; } }

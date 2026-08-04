@@ -91,11 +91,14 @@ export interface RiskPrediction {
 
 // ─── Routing Types ────────────────────────────────────────────────
 
+export type TravelMode = 'car' | 'motorcycle' | 'bicycle' | 'pedestrian';
+
 export interface RouteParams {
   origin: [number, number];
   destination: [number, number];
   alpha: number; // time weight
   beta: number;  // safety weight
+  mode?: TravelMode;
 }
 
 export interface RouteComparison {
@@ -107,6 +110,44 @@ export interface RouteDetails {
   path: [number, number][];
   total_risk: number;
   distance_km: number;
+  mode?: TravelMode;
+}
+
+// ─── Municipal Safety Audit Types ─────────────────────────────────
+
+export interface SafetyAuditRequest {
+  jurisdiction?: string;
+  startDate?: string;
+  endDate?: string;
+  minSeverity?: number;
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
+}
+
+export interface PriorityIntervention {
+  location: string;
+  factor: string;
+  countermeasure: string;
+  estimatedRiskReductionPct: number;
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  costEstimate: string;
+  category: 'GEOMETRIC' | 'SURFACE' | 'LIGHTING' | 'SIGNAL' | 'ENFORCEMENT';
+}
+
+export interface SafetyAuditReport {
+  auditId: string;
+  jurisdiction: string;
+  auditTimestamp: string;
+  totalAccidentsAnalyzed: number;
+  blackspotsIdentified: number;
+  overallSafetyRating: string;
+  safetyScore: number;
+  criticalCorridors: string[];
+  factorBreakdown: Record<string, number>;
+  priorityInterventions: PriorityIntervention[];
+  regulatoryComplianceStatus: string;
+  summary: string;
 }
 
 // ─── WebSocket Types ──────────────────────────────────────────────
@@ -127,3 +168,4 @@ export interface IncidentFilters {
   startDate?: string;
   endDate?: string;
 }
+

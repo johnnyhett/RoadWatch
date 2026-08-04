@@ -1,0 +1,1 @@
+package org.springframework.web.socket.config.annotation; import org.springframework.messaging.simp.config.MessageBrokerRegistry; public interface WebSocketMessageBrokerConfigurer { default void configureMessageBroker(MessageBrokerRegistry config) {} default void registerStompEndpoints(StompEndpointRegistry registry) {} }
