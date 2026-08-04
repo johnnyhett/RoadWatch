@@ -3,80 +3,75 @@
 import React from 'react';
 
 interface LogoProps {
-  className?: string;
   size?: number;
+  className?: string;
 }
 
-/**
- * Custom bespoke logo mark for RoadWatch.
- * Features an overlapping geometric highway vector converging into a safety shield node.
- */
-export default function RoadWatchLogo({ className = '', size = 32 }: LogoProps) {
+export default function RoadWatchLogo({ size = 32, className = '' }: LogoProps) {
   return (
-    <div className={`relative flex items-center justify-center ${className}`}>
+    <div className={`relative flex items-center justify-center shrink-0 ${className}`}>
       <svg
         width={size}
         height={size}
-        viewBox="0 0 44 44"
+        viewBox="0 0 48 48"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
+        className="filter drop-shadow-[0_0_10px_rgba(0,212,255,0.4)]"
       >
         <defs>
-          <linearGradient id="rwShieldGrad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+          <linearGradient id="shieldGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="#00d4ff" />
-            <stop offset="100%" stopColor="#0284c7" />
-          </linearGradient>
-          <linearGradient id="rwRoadGrad" x1="22" y1="12" x2="22" y2="38" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="50%" stopColor="#38bdf8" />
             <stop offset="100%" stopColor="#10b981" />
           </linearGradient>
-          <filter id="rwGlowEffect" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
+
+          <linearGradient id="roadGrad" x1="24" y1="12" x2="24" y2="40" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="100%" stopColor="#94a3b8" />
+          </linearGradient>
+
+          <radialGradient id="glowGlow" cx="24" cy="24" r="24" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#00d4ff" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#00d4ff" stopOpacity="0" />
+          </radialGradient>
         </defs>
 
-        {/* Outer Shield Boundary */}
-        <path
-          d="M22 3L37 10V22C37 31 29.5 37.5 22 41C14.5 37.5 7 31 7 22V10L22 3Z"
-          fill="rgba(0, 212, 255, 0.08)"
-          stroke="url(#rwShieldGrad)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
+        {/* Ambient Glow Disk */}
+        <circle cx="24" cy="24" r="22" fill="url(#glowGlow)" />
 
-        {/* Converging Curved Road Lanes */}
+        {/* Geometric Shield Polygon Outer Frame */}
         <path
-          d="M13 32C17 24 20 18 22 14C24 18 27 24 31 32"
-          stroke="url(#rwRoadGrad)"
+          d="M24 4L40 10V22C40 32.5 33.2 41.8 24 45C14.8 41.8 8 32.5 8 22V10L24 4Z"
+          fill="#0b0f19"
+          fillOpacity="0.85"
+          stroke="url(#shieldGrad)"
           strokeWidth="2.5"
-          strokeLinecap="round"
           strokeLinejoin="round"
         />
 
-        {/* Lane Center Dashes */}
+        {/* Converging Arterial Highway Lanes */}
         <path
-          d="M22 32V20"
-          stroke="#ffffff"
+          d="M17 38L22 16H26L31 38"
+          stroke="url(#roadGrad)"
           strokeWidth="2"
-          strokeDasharray="2.5 2.5"
           strokeLinecap="round"
         />
 
-        {/* Central Safety Radar Node */}
-        <circle
-          cx="22"
-          cy="14"
-          r="4"
-          fill="#00d4ff"
-          filter="url(#rwGlowEffect)"
+        {/* Dashed Center Road Stripe */}
+        <line
+          x1="24"
+          y1="18"
+          x2="24"
+          y2="36"
+          stroke="#00d4ff"
+          strokeWidth="2"
+          strokeDasharray="2 3"
+          strokeLinecap="round"
         />
-        <circle
-          cx="22"
-          cy="14"
-          r="1.8"
-          fill="#ffffff"
-        />
+
+        {/* Radar Pulse Center Node */}
+        <circle cx="24" cy="20" r="3" fill="#ef4444" className="animate-pulse" />
+        <circle cx="24" cy="20" r="1.2" fill="#ffffff" />
       </svg>
     </div>
   );
