@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/layout/Navbar';
 import { LocationProvider } from '@/context/LocationContext';
+import { UserPreferencesProvider } from '@/context/UserPreferencesContext';
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -37,12 +38,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans antialiased h-screen overflow-hidden flex flex-col bg-[#070a0f] text-slate-100`}>
-        <LocationProvider>
-          <Navbar />
-          <main className="flex-1 relative overflow-hidden">
-            {children}
-          </main>
-        </LocationProvider>
+        <UserPreferencesProvider>
+          <LocationProvider>
+            <Navbar />
+            <main className="flex-1 relative overflow-hidden">
+              {children}
+            </main>
+          </LocationProvider>
+        </UserPreferencesProvider>
       </body>
     </html>
   );

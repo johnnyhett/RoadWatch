@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Map, BarChart2, Navigation, Globe, Compass, ShieldCheck } from 'lucide-react';
+import { Map, BarChart2, Navigation, Globe, Compass, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocationContext } from '@/context/LocationContext';
@@ -9,11 +9,13 @@ import GlobalLocationSearch from './GlobalLocationSearch';
 import DataSourceSelector from './DataSourceSelector';
 import RoadWatchLogo from '../ui/RoadWatchLogo';
 import SafetyAuditDrawer from '../analytics/SafetyAuditDrawer';
+import PersonalizationDrawer from './PersonalizationDrawer';
 
 export default function Navbar() {
   const pathname = usePathname();
   const { location, loading, enableGps, clearLocation } = useLocationContext();
   const [auditOpen, setAuditOpen] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
 
   const navItems = [
     { name: 'Live Map', path: '/', icon: Map },
@@ -67,8 +69,17 @@ export default function Navbar() {
           <GlobalLocationSearch />
         </div>
 
-        {/* RIGHT SECTION (Col 9-12): Audit Trigger & Segmented Navigation Tabs */}
+        {/* RIGHT SECTION (Col 9-12): Personalize Trigger, Audit Trigger & Segmented Navigation Tabs */}
         <div className="col-span-4 flex justify-end items-center gap-2">
+          <button
+            onClick={() => setPrefsOpen(true)}
+            title="Operational Personalization"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-300 font-semibold text-xs transition-all shadow-[0_0_10px_rgba(0,212,255,0.2)]"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline font-mono">Personalize</span>
+          </button>
+
           <button
             onClick={() => setAuditOpen(true)}
             className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-300 font-semibold text-xs transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]"
@@ -100,9 +111,9 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Safety Audit Drawer */}
+      {/* Personalization & Safety Audit Drawers */}
+      <PersonalizationDrawer isOpen={prefsOpen} onClose={() => setPrefsOpen(false)} />
       <SafetyAuditDrawer isOpen={auditOpen} onClose={() => setAuditOpen(false)} />
     </>
   );
 }
-
