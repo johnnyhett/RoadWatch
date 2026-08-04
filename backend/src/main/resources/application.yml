@@ -1,0 +1,12 @@
+server:
+  port: 8080
+
+ml-engine:
+  base-url: http://localhost:8000
+
+spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+    property-naming-strategy: SNAKE_CASE

@@ -1,0 +1,52 @@
+# ========================
+# Java / Spring Boot
+# ========================
+backend/build/
+backend/.gradle/
+backend/bin/
+backend/out/
+*.class
+*.jar
+*.war
+*.log
+*.iml
+.idea/
+*.swp
+
+# ========================
+# Python
+# ========================
+ml-engine/__pycache__/
+ml-engine/.venv/
+ml-engine/venv/
+ml-engine/*.egg-info/
+ml-engine/.mypy_cache/
+*.pyc
+*.pyo
+
+# ========================
+# Node / Next.js
+# ========================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env*.local
+
+# ========================
+# OS & IDE
+# ========================
+.DS_Store
+Thumbs.db
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ========================
+# Environment
+# ========================
+.env
+*.env

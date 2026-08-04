@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+scikit-learn
+hdbscan
+mlxtend
+xgboost
+pandas
+numpy
+scipy
+networkx
+pyproj
