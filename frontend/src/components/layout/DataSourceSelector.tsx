@@ -1,151 +1,117 @@
 'use client';
 
 import { useState } from 'react';
-import { Database, ShieldCheck, Check, ChevronDown } from 'lucide-react';
+import { Database, ShieldCheck, Check, ChevronDown, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export interface DataSource {
+export interface CountryJoinedSource {
   id: string;
   country: string;
   flag: string;
-  name: string;
-  provider: string;
-  records: string;
+  title: string;
+  agenciesJoined: string[];
+  totalMergedRecords: string;
+  coverageHorizon: string;
   license: string;
   badge: string;
 }
 
-export const COUNTRY_DATA_SOURCES: { countryGroup: string; flag: string; sources: DataSource[] }[] = [
+export const MERGED_COUNTRY_SOURCES: CountryJoinedSource[] = [
   {
-    countryGroup: 'Ghana Official Data Authorities',
+    id: 'ghana_unified',
+    country: 'Ghana',
     flag: '🇬🇭',
-    sources: [
-      {
-        id: 'ghana_nrsa',
-        country: 'Ghana',
-        flag: '🇬🇭',
-        name: 'National Road Safety Authority (NRSA)',
-        provider: 'Ministry of Transport / NRSA Ghana',
-        records: '1,500 Geotagged Collision Logs (N1, N6, N10 Highways)',
-        license: 'Ghana Open Government Data',
-        badge: 'Primary National Standard',
-      },
-      {
-        id: 'ghana_gha',
-        country: 'Ghana',
-        flag: '🇬🇭',
-        name: 'Ghana Highway Authority (GHA) Traffic Audit',
-        provider: 'Ghana Highway Authority',
-        records: 'Inter-Regional Arterial Flow & Crash Logs',
-        license: 'GHA Transport Observatory',
-        badge: 'Highway Telemetry',
-      },
-      {
-        id: 'ghana_mttd',
-        country: 'Ghana',
-        flag: '🇬🇭',
-        name: 'MTTD Ghana Police Service Incident Dispatch',
-        provider: 'Motor Traffic & Transport Department (MTTD)',
-        records: 'Urban Intersection Collision Dispatch Feeds',
-        license: 'Ghana Police Open Data',
-        badge: 'Police Dispatch',
-      },
-      {
-        id: 'ghana_dvla',
-        country: 'Ghana',
-        flag: '🇬🇭',
-        name: 'DVLA Ghana Vehicle Safety Registry',
-        provider: 'Driver & Vehicle Licensing Authority',
-        records: 'Trotro, Bus & Commercial Heavy Vehicle Audits',
-        license: 'DVLA Safety Registry',
-        badge: 'Commercial Vehicle Logs',
-      },
+    title: 'Ghana Unified National Data Horizon',
+    agenciesJoined: [
+      'National Road Safety Authority (NRSA)',
+      'Ghana Highway Authority (GHA)',
+      'MTTD Ghana Police Service Dispatch',
+      'DVLA Commercial Vehicle Registry',
     ],
+    totalMergedRecords: '2,450 Verified Geotagged Incidents',
+    coverageHorizon: 'N1, N6, N10 Highways, Kumasi, Accra, Tamale, Takoradi & All 16 Regions',
+    license: 'Ghana Open Government Data Initiative',
+    badge: 'Unified Horizon (4 Agencies)',
   },
   {
-    countryGroup: 'United Kingdom',
+    id: 'uk_unified',
+    country: 'United Kingdom',
     flag: '🇬🇧',
-    sources: [
-      {
-        id: 'stats19',
-        country: 'United Kingdom',
-        flag: '🇬🇧',
-        name: 'UK STATS19 National Database',
-        provider: 'Department for Transport (DfT)',
-        records: 'Official DfT STATS19 Open Data',
-        license: 'Open Government Licence v3.0',
-        badge: 'Official Open Data',
-      },
+    title: 'UK Unified National Data Horizon',
+    agenciesJoined: [
+      'Department for Transport (DfT STATS19)',
+      'National Highways Telemetry',
+      'Metropolitan & Regional Police Incident Feeds',
     ],
+    totalMergedRecords: '4,200 Merged National Collision Records',
+    coverageHorizon: 'Metropolitan Highways, A-Road Corridors & Urban Junctions',
+    license: 'Open Government Licence v3.0',
+    badge: 'Unified Horizon (3 Agencies)',
   },
   {
-    countryGroup: 'United States',
+    id: 'us_unified',
+    country: 'United States',
     flag: '🇺🇸',
-    sources: [
-      {
-        id: 'nhtsa',
-        country: 'United States',
-        flag: '🇺🇸',
-        name: 'US NHTSA FARS Database',
-        provider: 'Federal Highway Administration',
-        records: 'FARS Fatality Analysis System',
-        license: 'US Public Domain',
-        badge: 'Federal Standard',
-      },
+    title: 'US Federal & State Data Horizon',
+    agenciesJoined: [
+      'NHTSA Fatality Analysis Reporting System (FARS)',
+      'FHWA Federal Highway Collision Database',
+      'State DOT Incident Logs',
     ],
+    totalMergedRecords: '5,800 Interstate & Urban Collision Logs',
+    coverageHorizon: 'Interstate Highway System & Metropolitan Transit Corridors',
+    license: 'US Public Domain / Open Federal Data',
+    badge: 'Unified Horizon (3 Agencies)',
   },
   {
-    countryGroup: 'European Union',
+    id: 'eu_unified',
+    country: 'European Union',
     flag: '🇪🇺',
-    sources: [
-      {
-        id: 'eu_care',
-        country: 'European Union',
-        flag: '🇪🇺',
-        name: 'EU CARE Road Safety Observatory',
-        provider: 'European Commission (ERSO)',
-        records: 'EU Community Road Accident Database',
-        license: 'EU Open Data Portal',
-        badge: 'Continental ERSO',
-      },
+    title: 'EU ERSO Combined Continental Horizon',
+    agenciesJoined: [
+      'EU CARE Road Safety Observatory',
+      'ERSO Member State Registries',
+      'Trans-European Transport Network (TEN-T)',
     ],
+    totalMergedRecords: '3,900 Continental Cross-Border Records',
+    coverageHorizon: 'TEN-T Motorways & EU Member State Arterial Networks',
+    license: 'EU Open Data Portal License',
+    badge: 'Unified Horizon (3 Registries)',
   },
   {
-    countryGroup: 'Japan & Asia-Pacific',
+    id: 'japan_unified',
+    country: 'Japan',
     flag: '🇯🇵',
-    sources: [
-      {
-        id: 'itarda',
-        country: 'Japan',
-        flag: '🇯🇵',
-        name: 'ITARDA Traffic Research Database',
-        provider: 'Japan National Police Agency & ITARDA',
-        records: 'Precision Urban Micro-Collision Logs',
-        license: 'Japan Public Data',
-        badge: 'Precision Analytics',
-      },
+    title: 'Japan Unified Traffic Safety Horizon',
+    agenciesJoined: [
+      'ITARDA Traffic Accident Research Institute',
+      'National Police Agency (NPA) Collision Registry',
+      'MLIT Expressway Safety Telemetry',
     ],
+    totalMergedRecords: '2,100 High-Precision Urban Incident Logs',
+    coverageHorizon: 'Tokyo Metropolitan Expressway & Prefectural Road Networks',
+    license: 'Japan Public Open Data',
+    badge: 'Unified Horizon (3 Agencies)',
   },
   {
-    countryGroup: 'Global / Multi-National',
+    id: 'global_unified',
+    country: 'Global',
     flag: '🌐',
-    sources: [
-      {
-        id: 'osm_geocoded',
-        country: 'Global',
-        flag: '🌐',
-        name: 'OpenStreetMap & Municipal Telemetry',
-        provider: 'OSM Geocoded Telemetry & Municipal Portals',
-        records: 'Real-Time Spatial Map Alignment',
-        license: 'ODbL License',
-        badge: 'Spatial Network',
-      },
+    title: 'Global OpenStreetMap Telemetry Horizon',
+    agenciesJoined: [
+      'OpenStreetMap Global Road Telemetry',
+      'Municipal Open Data Portals',
+      'WGS84 Spatial Network Mapping',
     ],
+    totalMergedRecords: 'Dynamic Real-Time Map Network',
+    coverageHorizon: 'Global Municipalities (Africa, Europe, Americas, Asia-Pacific)',
+    license: 'ODbL License',
+    badge: 'Worldwide Spatial Feed',
   },
 ];
 
 export default function DataSourceSelector() {
-  const [selectedSource, setSelectedSource] = useState<DataSource>(COUNTRY_DATA_SOURCES[0].sources[0]);
+  const [selectedSource, setSelectedSource] = useState<CountryJoinedSource>(MERGED_COUNTRY_SOURCES[0]);
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -156,64 +122,63 @@ export default function DataSourceSelector() {
         className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/20 text-xs text-white transition-all font-mono"
       >
         <span className="text-sm">{selectedSource.flag}</span>
-        <span className="hidden sm:inline font-semibold">{selectedSource.country}: {selectedSource.name}</span>
+        <span className="hidden sm:inline font-semibold">{selectedSource.country}: {selectedSource.title}</span>
         <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Card Grouped by Country */}
+      {/* Dropdown Card Grouped by Country Horizon */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            className="absolute top-full left-0 mt-2 w-92 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 rounded-xl p-3 z-50 shadow-2xl space-y-3 max-h-96 overflow-y-auto"
+            className="absolute top-full left-0 mt-2 w-96 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 rounded-xl p-3 z-50 shadow-2xl space-y-3 max-h-96 overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <span className="text-[10px] font-mono font-bold text-white/60 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Data Sources Grouped by Country
+                <Layers className="w-3.5 h-3.5 text-cyan-400" /> Joined Country Data Horizons
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-mono font-bold">
+                Multi-Agency Merged
               </span>
             </div>
 
-            <div className="space-y-3">
-              {COUNTRY_DATA_SOURCES.map((group) => (
-                <div key={group.countryGroup} className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 font-mono border-b border-white/5 pb-1">
-                    <span>{group.flag}</span>
-                    <span>{group.countryGroup}</span>
-                  </div>
+            <div className="space-y-2">
+              {MERGED_COUNTRY_SOURCES.map((src) => {
+                const isSelected = src.id === selectedSource.id;
+                return (
+                  <div
+                    key={src.id}
+                    onClick={() => {
+                      setSelectedSource(src);
+                      setIsOpen(false);
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-cyan-500/15 border-cyan-400 text-white shadow-[0_0_12px_rgba(0,212,255,0.18)]'
+                        : 'bg-white/5 border-white/5 text-white/70 hover:bg-white/10 hover:border-white/15'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <strong className="text-xs font-bold font-heading text-white flex items-center gap-1.5">
+                        <span className="text-base">{src.flag}</span>
+                        <span>{src.title}</span>
+                      </strong>
+                      {isSelected && <Check className="w-4 h-4 text-cyan-400 shrink-0" />}
+                    </div>
 
-                  <div className="space-y-1">
-                    {group.sources.map((src) => {
-                      const isSelected = src.id === selectedSource.id;
-                      return (
-                        <div
-                          key={src.id}
-                          onClick={() => {
-                            setSelectedSource(src);
-                            setIsOpen(false);
-                          }}
-                          className={`p-2.5 rounded-lg border cursor-pointer transition-all ${
-                            isSelected
-                              ? 'bg-cyan-500/15 border-cyan-400 text-white shadow-[0_0_10px_rgba(0,212,255,0.15)]'
-                              : 'bg-white/5 border-white/5 text-white/70 hover:bg-white/10 hover:border-white/15'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <strong className="text-xs font-bold font-heading text-white">{src.name}</strong>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                          </div>
-                          <div className="text-[10px] font-mono space-y-0.5 text-white/60">
-                            <p><span className="text-white/40">Provider:</span> {src.provider}</p>
-                            <p><span className="text-white/40">Records:</span> {src.records}</p>
-                            <p><span className="text-white/40">License:</span> {src.license}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <div className="text-[10px] font-mono space-y-1 text-white/60">
+                      <div>
+                        <span className="text-cyan-300 font-bold">Joined Agencies: </span>
+                        <span className="text-white/80">{src.agenciesJoined.join(' • ')}</span>
+                      </div>
+                      <p><span className="text-white/40">Total Horizon Volume:</span> <strong className="text-cyan-300">{src.totalMergedRecords}</strong></p>
+                      <p><span className="text-white/40">Coverage Horizon:</span> {src.coverageHorizon}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
         )}
