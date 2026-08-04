@@ -18,8 +18,8 @@
     overflow-x: hidden;
   }
 
-  .light body {
-    background-color: #f1f5f9;
+  html.light body {
+    background-color: #f8fafc;
     background-image: 
       radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.08) 0%, transparent 60%),
       radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
@@ -48,7 +48,7 @@
   outline: none !important;
 }
 
-.light .leaflet-container {
+html.light .leaflet-container {
   background: #e2e8f0 !important;
 }
 
@@ -66,11 +66,11 @@
   box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2) !important;
 }
 
-.light .glass-panel {
-  background: rgba(255, 255, 255, 0.9) !important;
+html.light .glass-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
   backdrop-filter: blur(24px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
   box-shadow: 0 12px 30px 0 rgba(0, 0, 0, 0.08) !important;
   color: #0f172a !important;
 }
@@ -83,11 +83,11 @@
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15) !important;
 }
 
-.light .glass-card {
-  background: rgba(255, 255, 255, 0.85) !important;
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.9) !important;
   backdrop-filter: blur(20px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
   box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.06) !important;
   color: #0f172a !important;
 }
@@ -103,8 +103,8 @@
   transform: translateY(-2px);
 }
 
-.light .glass-card-hover:hover {
-  background: rgba(241, 245, 249, 0.98) !important;
+html.light .glass-card-hover:hover {
+  background: rgba(248, 250, 252, 0.98) !important;
   border-color: rgba(14, 165, 233, 0.45) !important;
   box-shadow: 0 8px 24px 0 rgba(14, 165, 233, 0.18) !important;
 }
@@ -117,10 +117,50 @@
   box-shadow: 0 0 14px rgba(0, 212, 255, 0.25) !important;
 }
 
-.light .glass-pill {
+html.light .glass-pill {
   background: rgba(14, 165, 233, 0.14) !important;
   border: 1px solid rgba(14, 165, 233, 0.4) !important;
   color: #0284c7 !important;
+}
+
+/* Light Mode Comprehensive Global High-Contrast Typography & Inputs Overrides */
+html.light .text-white,
+html.light .text-slate-100 {
+  color: #0f172a !important;
+}
+
+html.light .text-white\/90,
+html.light .text-white\/80 {
+  color: #1e293b !important;
+}
+
+html.light .text-white\/70,
+html.light .text-white\/60,
+html.light .text-white\/50 {
+  color: #475569 !important;
+}
+
+html.light .text-cyan-300,
+html.light .text-cyan-400 {
+  color: #0284c7 !important;
+}
+
+html.light .text-emerald-300,
+html.light .text-emerald-400 {
+  color: #059669 !important;
+}
+
+html.light select,
+html.light input,
+html.light option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.2) !important;
+}
+
+html.light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
 }
 
 /* Modern Gradient Ultra-Thin Scrollbar */
