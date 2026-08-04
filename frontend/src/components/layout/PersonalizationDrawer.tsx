@@ -1,7 +1,7 @@
 'use client';
 
-import { useUserPreferences, UserRole, MapStyle, ThemeColor } from '@/context/UserPreferencesContext';
-import { Settings, Shield, Sliders, Volume2, Eye, Map, X, Check } from 'lucide-react';
+import { useUserPreferences, UserRole, MapStyle, ThemeColor, ThemeMode } from '@/context/UserPreferencesContext';
+import { Settings, Shield, Sliders, Volume2, Eye, Map, X, Check, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const ROLES: { id: UserRole; title: string; desc: string; icon: string }[] = [
@@ -9,13 +9,6 @@ const ROLES: { id: UserRole; title: string; desc: string; icon: string }[] = [
   { id: 'RESPONSER', title: 'Emergency Dispatch', desc: 'Emphasizes live telemetry feed & fatal incident alerts', icon: '🚓' },
   { id: 'ANALYST', title: 'Traffic Data Analyst', desc: 'Displays FP-Growth association rules & KDE heatmaps', icon: '📊' },
   { id: 'COMMUTER', title: 'Daily Commuter', desc: 'Focuses on safest route navigation & weather delays', icon: '🚗' },
-];
-
-const MAP_STYLES: { id: MapStyle; label: string }[] = [
-  { id: 'carto_dark', label: 'Dark Matter (Default)' },
-  { id: 'carto_light', label: 'Carto Light' },
-  { id: 'osm_standard', label: 'OpenStreetMap Classic' },
-  { id: 'satellite', label: 'Satellite Hybrid' },
 ];
 
 const THEME_COLORS: { id: ThemeColor; label: string; bg: string }[] = [
@@ -35,6 +28,7 @@ export default function PersonalizationDrawer({ isOpen, onClose }: Personalizati
     role,
     mapStyle,
     themeColor,
+    themeMode,
     riskThreshold,
     soundAlertsEnabled,
     autoFlyToLocation,
@@ -42,6 +36,7 @@ export default function PersonalizationDrawer({ isOpen, onClose }: Personalizati
     setRole,
     setMapStyle,
     setThemeColor,
+    setThemeMode,
     setRiskThreshold,
     setSoundAlertsEnabled,
     setAutoFlyToLocation,
@@ -66,7 +61,7 @@ export default function PersonalizationDrawer({ isOpen, onClose }: Personalizati
               <h2 className="text-base font-bold text-white flex items-center gap-2 font-heading">
                 <Settings className="w-5 h-5 text-cyan-400" /> Operational Personalization
               </h2>
-              <p className="text-xs text-white/50 font-mono">Tailor HUD metrics, themes, and alert rules</p>
+              <p className="text-xs text-white/50 font-mono">Tailor HUD metrics, theme mode, and alert rules</p>
             </div>
             <button
               onClick={onClose}
@@ -76,10 +71,39 @@ export default function PersonalizationDrawer({ isOpen, onClose }: Personalizati
             </button>
           </div>
 
+          {/* Section 0: Light Mode vs Dark Mode Switcher */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold font-mono text-cyan-300 uppercase tracking-wider block flex items-center gap-1.5">
+              <Sun className="w-3.5 h-3.5 text-cyan-400" /> Appearance Mode
+            </label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-black/40 rounded-xl border border-white/10 font-mono text-xs">
+              <button
+                onClick={() => setThemeMode('dark')}
+                className={`py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
+                  themeMode === 'dark'
+                    ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(0,212,255,0.4)]'
+                    : 'text-white/60 hover:bg-white/5'
+                }`}
+              >
+                <Moon className="w-4 h-4" /> Dark Mode
+              </button>
+              <button
+                onClick={() => setThemeMode('light')}
+                className={`py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
+                  themeMode === 'light'
+                    ? 'bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.4)]'
+                    : 'text-white/60 hover:bg-white/5'
+                }`}
+              >
+                <Sun className="w-4 h-4" /> Light Mode
+              </button>
+            </div>
+          </div>
+
           {/* Section 1: Operational Role */}
           <div className="space-y-2">
             <label className="text-xs font-bold font-mono text-cyan-300 uppercase tracking-wider block flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-cyan-400" /> Operational Role & Profile
+              <Shield className="w-3.5 h-3.5 text-cyan-400" /> Operational Role Profile
             </label>
             <div className="grid grid-cols-1 gap-2">
               {ROLES.map((r) => (
@@ -108,7 +132,7 @@ export default function PersonalizationDrawer({ isOpen, onClose }: Personalizati
           {/* Section 2: Color Theme Preset */}
           <div className="space-y-2">
             <label className="text-xs font-bold font-mono text-cyan-300 uppercase tracking-wider block flex items-center gap-1.5">
-              <Eye className="w-3.5 h-3.5 text-cyan-400" /> Theme Color Preset
+              <Eye className="w-3.5 h-3.5 text-cyan-400" /> Accent Palette
             </label>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {THEME_COLORS.map((t) => (
@@ -156,7 +180,7 @@ export default function PersonalizationDrawer({ isOpen, onClose }: Personalizati
                 <Volume2 className="w-4 h-4 text-cyan-400" />
                 <div>
                   <span className="text-white font-medium block">Live Audio Telemetry Beep</span>
-                  <span className="text-[10px] text-white/50 font-mono">Play audible cue on new high-severity crash</span>
+                  <span className="text-[10px] text-white/50 font-mono font-normal">Play audible cue on new high-severity crash</span>
                 </div>
               </div>
               <input
@@ -172,7 +196,7 @@ export default function PersonalizationDrawer({ isOpen, onClose }: Personalizati
                 <Map className="w-4 h-4 text-cyan-400" />
                 <div>
                   <span className="text-white font-medium block">Auto Camera Location Fly-To</span>
-                  <span className="text-[10px] text-white/50 font-mono">Automatically transit map upon region selection</span>
+                  <span className="text-[10px] text-white/50 font-mono font-normal">Automatically transit map upon region selection</span>
                 </div>
               </div>
               <input

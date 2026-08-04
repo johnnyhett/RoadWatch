@@ -6,6 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MAP_CONFIG } from '@/lib/constants';
 import { Incident, Blackspot, RouteDetails, UserLocation } from '@/types';
+import { useUserPreferences } from '@/context/UserPreferencesContext';
 
 // Failproof Map Controller — Monitors DOM container resizes to guarantee 100% viewport tile coverage
 function MapController({ center, zoom }: { center?: [number, number]; zoom?: number }) {
@@ -138,6 +139,19 @@ export default function AppMap({
   onSelectBlackspot,
   flyToCoords = null,
 }: MapProps) {
+  const { themeMode, mapStyle } = useUserPreferences();
+
+  // Dynamic Tile URL based on Light Mode / Dark Mode preference
+  const currentTileUrl = useMemo(() => {
+    if (themeMode === 'light' || mapStyle === 'carto_light') {
+      return 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    }
+    if (mapStyle === 'osm_standard') {
+      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    }
+    return MAP_CONFIG.tileLayer; // CartoDB Dark
+  }, [themeMode, mapStyle]);
+
   const activeCenter: [number, number] = useMemo(() => {
     if (flyToCoords) return flyToCoords;
     if (userLocation) return [userLocation.latitude, userLocation.longitude];
@@ -163,11 +177,12 @@ export default function AppMap({
       zoom={14}
       minZoom={3}
       maxZoom={19}
-      className="w-full h-full z-0 bg-[#090d14]"
+      className={`w-full h-full z-0 ${themeMode === 'light' ? 'bg-[#e2e8f0]' : 'bg-[#090d14]'}`}
       zoomControl={false}
     >
       <TileLayer
-        url={MAP_CONFIG.tileLayer}
+        key={currentTileUrl}
+        url={currentTileUrl}
         attribution={MAP_CONFIG.attribution}
         maxZoom={19}
       />

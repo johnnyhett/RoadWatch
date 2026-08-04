@@ -5,11 +5,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 export type UserRole = 'RESPONSER' | 'ENGINEER' | 'ANALYST' | 'COMMUTER';
 export type MapStyle = 'carto_dark' | 'carto_light' | 'osm_standard' | 'satellite';
 export type ThemeColor = 'cyber_cyan' | 'emerald_matrix' | 'neon_amber' | 'oled_black';
+export type ThemeMode = 'dark' | 'light';
 
 interface UserPreferences {
   role: UserRole;
   mapStyle: MapStyle;
   themeColor: ThemeColor;
+  themeMode: ThemeMode;
   riskThreshold: number; // 0-100 score threshold for alerts
   soundAlertsEnabled: boolean;
   autoFlyToLocation: boolean;
@@ -17,6 +19,7 @@ interface UserPreferences {
   setRole: (role: UserRole) => void;
   setMapStyle: (style: MapStyle) => void;
   setThemeColor: (color: ThemeColor) => void;
+  setThemeMode: (mode: ThemeMode) => void;
   setRiskThreshold: (val: number) => void;
   setSoundAlertsEnabled: (val: boolean) => void;
   setAutoFlyToLocation: (val: boolean) => void;
@@ -29,6 +32,7 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
   const [role, setRoleState] = useState<UserRole>('ENGINEER');
   const [mapStyle, setMapStyleState] = useState<MapStyle>('carto_dark');
   const [themeColor, setThemeColorState] = useState<ThemeColor>('cyber_cyan');
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
   const [riskThreshold, setRiskThresholdState] = useState<number>(70);
   const [soundAlertsEnabled, setSoundAlertsEnabledState] = useState<boolean>(true);
   const [autoFlyToLocation, setAutoFlyToLocationState] = useState<boolean>(true);
@@ -43,6 +47,7 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
         if (parsed.role) setRoleState(parsed.role);
         if (parsed.mapStyle) setMapStyleState(parsed.mapStyle);
         if (parsed.themeColor) setThemeColorState(parsed.themeColor);
+        if (parsed.themeMode) setThemeModeState(parsed.themeMode);
         if (parsed.riskThreshold !== undefined) setRiskThresholdState(parsed.riskThreshold);
         if (parsed.soundAlertsEnabled !== undefined) setSoundAlertsEnabledState(parsed.soundAlertsEnabled);
         if (parsed.autoFlyToLocation !== undefined) setAutoFlyToLocationState(parsed.autoFlyToLocation);
@@ -59,6 +64,7 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
         role,
         mapStyle,
         themeColor,
+        themeMode,
         riskThreshold,
         soundAlertsEnabled,
         autoFlyToLocation,
@@ -82,6 +88,14 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
   const setThemeColor = (t: ThemeColor) => {
     setThemeColorState(t);
     savePrefs({ themeColor: t });
+  };
+
+  const setThemeMode = (m: ThemeMode) => {
+    setThemeModeState(m);
+    // Auto update map style to light if light mode selected
+    const newMapStyle = m === 'light' ? 'carto_light' : 'carto_dark';
+    setMapStyleState(newMapStyle);
+    savePrefs({ themeMode: m, mapStyle: newMapStyle });
   };
 
   const setRiskThreshold = (v: number) => {
@@ -110,6 +124,7 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
         role,
         mapStyle,
         themeColor,
+        themeMode,
         riskThreshold,
         soundAlertsEnabled,
         autoFlyToLocation,
@@ -117,6 +132,7 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
         setRole,
         setMapStyle,
         setThemeColor,
+        setThemeMode,
         setRiskThreshold,
         setSoundAlertsEnabled,
         setAutoFlyToLocation,

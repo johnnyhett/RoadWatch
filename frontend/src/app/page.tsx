@@ -13,6 +13,7 @@ import RiskPredictor from '@/components/prediction/RiskPredictor';
 import { getIncidents, getBlackspots, setGlobalLocationCenter } from '@/lib/api';
 import { Incident, Blackspot } from '@/types';
 import { useLocationContext } from '@/context/LocationContext';
+import { useUserPreferences } from '@/context/UserPreferencesContext';
 import { Layers, Filter, Target, Zap, Compass, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Cpu } from 'lucide-react';
 
 const Map = dynamic(() => import('@/components/map/MapContainer'), { 
@@ -32,8 +33,23 @@ export default function Dashboard() {
   const [blackspots, setBlackspots] = useState<Blackspot[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Global Location Context
+  // Global Location Context & Preferences
   const { location, loading: locLoading, enableGps, flyToCoords, setFlyToCoords } = useLocationContext();
+  const { themeMode } = useUserPreferences();
+
+  // Apply themeMode to document root element
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      if (themeMode === 'light') {
+        root.classList.remove('dark');
+        root.classList.add('light');
+      } else {
+        root.classList.remove('light');
+        root.classList.add('dark');
+      }
+    }
+  }, [themeMode]);
 
   // Headroom & Panel Collapse States
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
@@ -100,7 +116,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-[#070a0f]">
+    <div className={`w-full h-full relative overflow-hidden ${themeMode === 'light' ? 'bg-[#f1f5f9]' : 'bg-[#070a0f]'}`}>
       {/* Background Fullscreen Map Canvas */}
       <div className="absolute inset-0 z-0">
         <Map
