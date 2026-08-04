@@ -17,7 +17,7 @@ export interface DataSource {
 
 export const COUNTRY_DATA_SOURCES: { countryGroup: string; flag: string; sources: DataSource[] }[] = [
   {
-    countryGroup: 'Ghana',
+    countryGroup: 'Ghana Official Data Authorities',
     flag: '🇬🇭',
     sources: [
       {
@@ -26,9 +26,39 @@ export const COUNTRY_DATA_SOURCES: { countryGroup: string; flag: string; sources
         flag: '🇬🇭',
         name: 'National Road Safety Authority (NRSA)',
         provider: 'Ministry of Transport / NRSA Ghana',
-        records: '1,500 Geotagged Incident Logs',
+        records: '1,500 Geotagged Collision Logs (N1, N6, N10 Highways)',
         license: 'Ghana Open Government Data',
-        badge: 'Primary Dataset',
+        badge: 'Primary National Standard',
+      },
+      {
+        id: 'ghana_gha',
+        country: 'Ghana',
+        flag: '🇬🇭',
+        name: 'Ghana Highway Authority (GHA) Traffic Audit',
+        provider: 'Ghana Highway Authority',
+        records: 'Inter-Regional Arterial Flow & Crash Logs',
+        license: 'GHA Transport Observatory',
+        badge: 'Highway Telemetry',
+      },
+      {
+        id: 'ghana_mttd',
+        country: 'Ghana',
+        flag: '🇬🇭',
+        name: 'MTTD Ghana Police Service Incident Dispatch',
+        provider: 'Motor Traffic & Transport Department (MTTD)',
+        records: 'Urban Intersection Collision Dispatch Feeds',
+        license: 'Ghana Police Open Data',
+        badge: 'Police Dispatch',
+      },
+      {
+        id: 'ghana_dvla',
+        country: 'Ghana',
+        flag: '🇬🇭',
+        name: 'DVLA Ghana Vehicle Safety Registry',
+        provider: 'Driver & Vehicle Licensing Authority',
+        records: 'Trotro, Bus & Commercial Heavy Vehicle Audits',
+        license: 'DVLA Safety Registry',
+        badge: 'Commercial Vehicle Logs',
       },
     ],
   },
@@ -137,7 +167,7 @@ export default function DataSourceSelector() {
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            className="absolute top-full left-0 mt-2 w-88 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 rounded-xl p-3 z-50 shadow-2xl space-y-3 max-h-96 overflow-y-auto"
+            className="absolute top-full left-0 mt-2 w-92 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 rounded-xl p-3 z-50 shadow-2xl space-y-3 max-h-96 overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <span className="text-[10px] font-mono font-bold text-white/60 uppercase tracking-wider flex items-center gap-1.5">
