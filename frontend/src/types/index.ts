@@ -78,7 +78,7 @@ export interface RiskFeatures {
   light: string;
   road_type: string;
   speed_limit: number;
-  junction: string;
+  junction?: string;
   hour: number;
   day_of_week: number;
 }
@@ -87,6 +87,9 @@ export interface RiskPrediction {
   risk_level: string;
   probabilities: Record<string, number>;
   severity_prediction: string;
+  risk_score?: number;
+  feature_importance?: Record<string, number>;
+  recommended_mitigations?: string[];
 }
 
 // ─── Routing Types ────────────────────────────────────────────────
@@ -168,4 +171,3 @@ export interface IncidentFilters {
   startDate?: string;
   endDate?: string;
 }
-
