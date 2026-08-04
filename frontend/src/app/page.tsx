@@ -13,7 +13,7 @@ import RiskPredictor from '@/components/prediction/RiskPredictor';
 import { getIncidents, getBlackspots, setGlobalLocationCenter } from '@/lib/api';
 import { Incident, Blackspot } from '@/types';
 import { useLocationContext } from '@/context/LocationContext';
-import { Layers, Filter, Target, Zap, Compass, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Layers, Filter, Target, Zap, Compass, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Cpu } from 'lucide-react';
 
 const Map = dynamic(() => import('@/components/map/MapContainer'), { 
   ssr: false,
@@ -38,6 +38,7 @@ export default function Dashboard() {
   // Headroom & Panel Collapse States
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [activeRightTab, setActiveRightTab] = useState<'analytics' | 'ml_predictor'>('analytics');
 
   // Layer & Filter State
   const [showHeatmap, setShowHeatmap] = useState(true);
@@ -45,9 +46,8 @@ export default function Dashboard() {
   const [showIncidents, setShowIncidents] = useState(true);
   const [selectedSeverity, setSelectedSeverity] = useState<number | null>(null);
 
-  // Inspector & Camera State
+  // Inspector State
   const [selectedBlackspot, setSelectedBlackspot] = useState<Blackspot | null>(null);
-  const [showRiskModal, setShowRiskModal] = useState(false);
 
   const loadDataForLocation = useCallback(async (lat: number, lng: number) => {
     setLoading(true);
@@ -152,10 +152,13 @@ export default function Dashboard() {
                           {location ? 'My Area' : 'Locate'}
                         </button>
                         <button
-                          onClick={() => setShowRiskModal(true)}
+                          onClick={() => {
+                            setRightPanelOpen(true);
+                            setActiveRightTab('ml_predictor');
+                          }}
                           className="px-2 py-0.5 glass-pill text-cyan-300 rounded text-[10px] font-mono hover:bg-cyan-500/20 transition-all flex items-center gap-1 font-bold"
                         >
-                          <Zap className="w-3 h-3 text-cyan-400" /> Predict
+                          <Zap className="w-3 h-3 text-cyan-400" /> Predict ML
                         </button>
                       </div>
                     </div>
@@ -309,26 +312,56 @@ export default function Dashboard() {
             </AnimatePresence>
           </div>
 
-          {/* Right Floating Glass Panel */}
+          {/* Right Floating Glass Panel: Analytics & Embedded ML Risk Classifier */}
           <div className="pointer-events-auto flex gap-2 items-start">
             <AnimatePresence>
               {rightPanelOpen && (
                 <motion.div
                   initial={{ opacity: 0, x: 20, width: 0 }}
-                  animate={{ opacity: 1, x: 0, width: '360px' }}
+                  animate={{ opacity: 1, x: 0, width: '380px' }}
                   exit={{ opacity: 0, x: 20, width: 0 }}
-                  className="flex flex-col gap-2.5"
+                  className="flex flex-col gap-2.5 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar"
                 >
-                  <StatsGrid />
-                  <SeverityChart />
-                  <TemporalChart />
+                  {/* Segmented Tab Header */}
+                  <div className="glass-panel p-1 rounded-xl flex items-center gap-1 font-mono text-xs">
+                    <button
+                      onClick={() => setActiveRightTab('analytics')}
+                      className={`flex-1 py-1.5 rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                        activeRightTab === 'analytics'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-[0_0_10px_rgba(0,212,255,0.2)]'
+                          : 'text-white/60 hover:bg-white/5'
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5 text-cyan-400" /> Analytics
+                    </button>
+                    <button
+                      onClick={() => setActiveRightTab('ml_predictor')}
+                      className={`flex-1 py-1.5 rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                        activeRightTab === 'ml_predictor'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-[0_0_10px_rgba(0,212,255,0.2)]'
+                          : 'text-white/60 hover:bg-white/5'
+                      }`}
+                    >
+                      <Cpu className="w-3.5 h-3.5 text-cyan-400" /> XGBoost ML Predictor
+                    </button>
+                  </div>
+
+                  {activeRightTab === 'analytics' ? (
+                    <>
+                      <StatsGrid />
+                      <SeverityChart />
+                      <TemporalChart />
+                    </>
+                  ) : (
+                    <RiskPredictor />
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
 
             <button
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
-              title={rightPanelOpen ? 'Collapse Analytics' : 'Expand Analytics'}
+              title={rightPanelOpen ? 'Collapse Right Panel' : 'Expand Right Panel'}
               className="p-2 rounded-xl glass-panel text-white/80 hover:text-white transition-all shadow-xl"
             >
               {rightPanelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4 text-cyan-400" />}
@@ -349,23 +382,6 @@ export default function Dashboard() {
             blackspot={selectedBlackspot}
             onClose={() => setSelectedBlackspot(null)}
           />
-        )}
-      </AnimatePresence>
-
-      {/* Risk Assessment Modal */}
-      <AnimatePresence>
-        {showRiskModal && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="relative w-full max-w-xl">
-              <button
-                onClick={() => setShowRiskModal(false)}
-                className="absolute -top-3 -right-3 z-10 p-2 bg-black/90 text-white/70 hover:text-white rounded-full border border-white/20"
-              >
-                ✕
-              </button>
-              <RiskPredictor />
-            </div>
-          </div>
         )}
       </AnimatePresence>
     </div>
