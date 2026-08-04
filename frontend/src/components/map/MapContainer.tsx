@@ -90,6 +90,12 @@ interface MapProps {
   flyToCoords?: [number, number] | null;
 }
 
+// World coordinate boundary box to prevent infinite map wrapping
+const WORLD_BOUNDS: L.LatLngBoundsExpression = [
+  [-85, -180],
+  [85, 180],
+];
+
 export default function AppMap({
   incidents = [],
   blackspots = [],
@@ -126,12 +132,19 @@ export default function AppMap({
     <MapContainer
       center={activeCenter}
       zoom={14}
-      className="w-full h-full z-0"
+      minZoom={3}
+      maxZoom={19}
+      maxBounds={WORLD_BOUNDS}
+      maxBoundsViscosity={1.0}
+      worldCopyJump={false}
+      className="w-full h-full z-0 bg-[#090d14]"
       zoomControl={false}
     >
       <TileLayer
         url={MAP_CONFIG.tileLayer}
         attribution={MAP_CONFIG.attribution}
+        noWrap={true}
+        bounds={WORLD_BOUNDS}
       />
 
       {/* Automatic Camera FlyTo Controller */}
@@ -295,11 +308,7 @@ export default function AppMap({
                       className={`font-semibold px-2 py-0.5 rounded text-[10px] ${
                         incident.severity === 1
                           ? 'bg-red-500/20 text-red-400'
-                          : incident.severity === 2
-                          ? 'bg-orange-500/20 text-orange-400'
-                          : incident.severity === 3
-                          ? 'bg-yellow-500/20 text-yellow-400'
-                          : 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-orange-500/20 text-orange-400'
                       }`}
                     >
                       {sevLabel}
