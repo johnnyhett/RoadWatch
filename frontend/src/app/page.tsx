@@ -13,7 +13,7 @@ import RiskPredictor from '@/components/prediction/RiskPredictor';
 import { getIncidents, getBlackspots, setGlobalLocationCenter } from '@/lib/api';
 import { Incident, Blackspot } from '@/types';
 import { useLocationContext } from '@/context/LocationContext';
-import { Layers, Filter, Target, Zap, Compass, Globe, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Eye, Info, Database } from 'lucide-react';
+import { Layers, Filter, Target, Zap, Compass, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 const Map = dynamic(() => import('@/components/map/MapContainer'), { 
   ssr: false,
@@ -21,7 +21,7 @@ const Map = dynamic(() => import('@/components/map/MapContainer'), {
     <div className="w-full h-full bg-[#070a0f] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
-        <p className="text-white/60 text-xs font-medium font-mono">Loading map and incident data...</p>
+        <p className="text-white/60 text-xs font-medium font-mono">Loading map and incident telemetry...</p>
       </div>
     </div>
   )
@@ -119,12 +119,12 @@ export default function Dashboard() {
       {/* Overlay Dashboard UI */}
       <div className="absolute inset-0 z-10 pointer-events-none p-3 flex flex-col justify-between">
         <div className="flex justify-between items-start">
-          {/* Left Floating Panel */}
+          {/* Left Floating Glass Panel */}
           <div className="pointer-events-auto flex gap-2 items-start">
             <button
               onClick={() => setLeftPanelOpen(!leftPanelOpen)}
               title={leftPanelOpen ? 'Collapse Left Controls' : 'Expand Left Controls'}
-              className="p-2 rounded-lg bg-[#0d1117]/90 border border-white/15 text-white/80 hover:text-white hover:bg-white/10 transition-colors shadow-lg"
+              className="p-2 rounded-xl glass-panel text-white/80 hover:text-white transition-all shadow-xl"
             >
               {leftPanelOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4 text-cyan-400" />}
             </button>
@@ -138,22 +138,22 @@ export default function Dashboard() {
                   className="flex flex-col gap-2.5 max-h-[calc(100vh-120px)] overflow-hidden"
                 >
                   {/* Pattern Discovery Layer Controls */}
-                  <div className="glass-card p-3 space-y-3 bg-[#0d1117]/95 border-white/15 shadow-2xl">
+                  <div className="glass-panel p-3 space-y-3 rounded-2xl shadow-2xl">
                     <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-white/90 flex items-center gap-1.5 font-heading">
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5 font-heading">
                         <Layers className="w-3.5 h-3.5 text-cyan-400" /> Spatial Pattern Layers
                       </h2>
                       <div className="flex gap-1">
                         <button
                           onClick={handleFlyToMyLocation}
-                          className="px-2 py-0.5 bg-white/5 text-cyan-300 border border-white/10 rounded text-[10px] font-mono hover:bg-white/10 transition-colors flex items-center gap-1"
+                          className="px-2 py-0.5 glass-pill text-cyan-300 rounded text-[10px] font-mono hover:bg-cyan-500/20 transition-all flex items-center gap-1"
                         >
                           <Compass className={`w-3 h-3 text-cyan-400 ${locLoading ? 'animate-spin' : ''}`} />
                           {location ? 'My Area' : 'Locate'}
                         </button>
                         <button
                           onClick={() => setShowRiskModal(true)}
-                          className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded text-[10px] font-mono hover:bg-cyan-500/30 transition-colors flex items-center gap-1"
+                          className="px-2 py-0.5 glass-pill text-cyan-300 rounded text-[10px] font-mono hover:bg-cyan-500/20 transition-all flex items-center gap-1 font-bold"
                         >
                           <Zap className="w-3 h-3 text-cyan-400" /> Predict
                         </button>
@@ -168,9 +168,9 @@ export default function Dashboard() {
                       <div className="grid grid-cols-3 gap-1 text-[10px]">
                         <button
                           onClick={() => setPresetMode('hotspots')}
-                          className={`py-1 px-1 rounded text-center font-mono border transition-all ${
+                          className={`py-1 px-1 rounded-lg text-center font-mono border transition-all ${
                             showBlackspots && !showHeatmap && !showIncidents
-                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold'
+                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold shadow-[0_0_10px_rgba(0,212,255,0.2)]'
                               : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
                           }`}
                         >
@@ -178,9 +178,9 @@ export default function Dashboard() {
                         </button>
                         <button
                           onClick={() => setPresetMode('heatmap')}
-                          className={`py-1 px-1 rounded text-center font-mono border transition-all ${
+                          className={`py-1 px-1 rounded-lg text-center font-mono border transition-all ${
                             showHeatmap && !showBlackspots && !showIncidents
-                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold'
+                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold shadow-[0_0_10px_rgba(0,212,255,0.2)]'
                               : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
                           }`}
                         >
@@ -188,9 +188,9 @@ export default function Dashboard() {
                         </button>
                         <button
                           onClick={() => setPresetMode('full')}
-                          className={`py-1 px-1 rounded text-center font-mono border transition-all ${
+                          className={`py-1 px-1 rounded-lg text-center font-mono border transition-all ${
                             showHeatmap && showBlackspots && showIncidents
-                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold'
+                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold shadow-[0_0_10px_rgba(0,212,255,0.2)]'
                               : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
                           }`}
                         >
@@ -210,7 +210,7 @@ export default function Dashboard() {
                         <button
                           onClick={() => setShowHeatmap(!showHeatmap)}
                           className={`w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 p-0.5 ${
-                            showHeatmap ? 'bg-cyan-500' : 'bg-white/15'
+                            showHeatmap ? 'bg-cyan-500 shadow-[0_0_10px_rgba(0,212,255,0.4)]' : 'bg-white/15'
                           }`}
                         >
                           <span
@@ -230,7 +230,7 @@ export default function Dashboard() {
                         <button
                           onClick={() => setShowBlackspots(!showBlackspots)}
                           className={`w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 p-0.5 ${
-                            showBlackspots ? 'bg-cyan-500' : 'bg-white/15'
+                            showBlackspots ? 'bg-cyan-500 shadow-[0_0_10px_rgba(0,212,255,0.4)]' : 'bg-white/15'
                           }`}
                         >
                           <span
@@ -250,7 +250,7 @@ export default function Dashboard() {
                         <button
                           onClick={() => setShowIncidents(!showIncidents)}
                           className={`w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 p-0.5 ${
-                            showIncidents ? 'bg-cyan-500' : 'bg-white/15'
+                            showIncidents ? 'bg-cyan-500 shadow-[0_0_10px_rgba(0,212,255,0.4)]' : 'bg-white/15'
                           }`}
                         >
                           <span
@@ -280,7 +280,7 @@ export default function Dashboard() {
                             onClick={() => setSelectedSeverity(s.val)}
                             className={`py-1 rounded text-center font-mono transition-all ${
                               selectedSeverity === s.val
-                                ? 'bg-cyan-500 text-white font-bold'
+                                ? 'bg-cyan-500 text-white font-bold shadow-[0_0_10px_rgba(0,212,255,0.3)]'
                                 : 'bg-white/5 text-white/70 hover:bg-white/10'
                             }`}
                           >
@@ -292,7 +292,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Blackspots Hotspots List */}
-                  <div className="glass-card p-2.5 flex flex-col gap-2 flex-1 min-h-0 overflow-hidden bg-[#0d1117]/95 border-white/15">
+                  <div className="glass-panel p-2.5 flex flex-col gap-2 flex-1 min-h-0 overflow-hidden rounded-2xl">
                     <div className="flex items-center justify-between px-1">
                       <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-heading">
                         <Target className="w-3.5 h-3.5 text-red-400" /> High-Risk Hotspots ({blackspots.length})
@@ -309,7 +309,7 @@ export default function Dashboard() {
             </AnimatePresence>
           </div>
 
-          {/* Right Floating Panel */}
+          {/* Right Floating Glass Panel */}
           <div className="pointer-events-auto flex gap-2 items-start">
             <AnimatePresence>
               {rightPanelOpen && (
@@ -329,7 +329,7 @@ export default function Dashboard() {
             <button
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
               title={rightPanelOpen ? 'Collapse Analytics' : 'Expand Analytics'}
-              className="p-2 rounded-lg bg-[#0d1117]/90 border border-white/15 text-white/80 hover:text-white hover:bg-white/10 transition-colors shadow-lg"
+              className="p-2 rounded-xl glass-panel text-white/80 hover:text-white transition-all shadow-xl"
             >
               {rightPanelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4 text-cyan-400" />}
             </button>
