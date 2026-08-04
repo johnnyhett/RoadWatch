@@ -6,18 +6,23 @@ import L from 'leaflet';
 import { MAP_CONFIG } from '@/lib/constants';
 import { Incident, Blackspot, RouteDetails, UserLocation } from '@/types';
 
-// Dynamic Map Camera Controller — Automatically flies to detected location
+// Dynamic Map Camera Controller — Automatically flies to detected location & invalidates size
 function MapController({ center, zoom }: { center?: [number, number]; zoom?: number }) {
   const map = useMap();
+
   useEffect(() => {
+    // Invalidate map container size on mount to guarantee 100% tile coverage
+    map.invalidateSize();
+
     if (center && center[0] !== 0 && center[1] !== 0) {
       map.flyTo(center, zoom || 14, {
         animate: true,
-        duration: 0.7,
+        duration: 0.8,
         easeLinearity: 0.25,
       });
     }
   }, [center, zoom, map]);
+
   return null;
 }
 
@@ -90,12 +95,6 @@ interface MapProps {
   flyToCoords?: [number, number] | null;
 }
 
-// World coordinate boundary box to prevent infinite map wrapping
-const WORLD_BOUNDS: L.LatLngBoundsExpression = [
-  [-85, -180],
-  [85, 180],
-];
-
 export default function AppMap({
   incidents = [],
   blackspots = [],
@@ -134,20 +133,17 @@ export default function AppMap({
       zoom={14}
       minZoom={3}
       maxZoom={19}
-      maxBounds={WORLD_BOUNDS}
-      maxBoundsViscosity={1.0}
-      worldCopyJump={false}
       className="w-full h-full z-0 bg-[#090d14]"
       zoomControl={false}
     >
       <TileLayer
         url={MAP_CONFIG.tileLayer}
         attribution={MAP_CONFIG.attribution}
-        noWrap={true}
-        bounds={WORLD_BOUNDS}
+        subdomains="abcd"
+        maxZoom={19}
       />
 
-      {/* Automatic Camera FlyTo Controller */}
+      {/* Automatic Camera FlyTo & Size Invalidation Controller */}
       <MapController center={activeCenter} zoom={14} />
 
       {/* User Location & Surrounding Area Radius */}
