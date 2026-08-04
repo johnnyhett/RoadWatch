@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocationContext } from '@/context/LocationContext';
 import GlobalLocationSearch from './GlobalLocationSearch';
+import DataSourceSelector from './DataSourceSelector';
 import RoadWatchLogo from '../ui/RoadWatchLogo';
 
 export default function Navbar() {
@@ -19,8 +20,8 @@ export default function Navbar() {
 
   return (
     <header className="h-14 bg-[#090d14] border-b border-white/10 z-50 grid grid-cols-12 items-center px-5 shrink-0 relative gap-4 shadow-xl">
-      {/* LEFT SECTION (Col 1-3): Brand Identity & Location Badge */}
-      <div className="col-span-3 flex items-center gap-3">
+      {/* LEFT SECTION (Col 1-4): Brand Identity, Location Badge & Data Source Selector */}
+      <div className="col-span-4 flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           <RoadWatchLogo size={30} className="group-hover:scale-105 transition-transform duration-300" />
           <div>
@@ -30,10 +31,13 @@ export default function Navbar() {
           </div>
         </Link>
 
+        {/* Data Source Selector */}
+        <DataSourceSelector />
+
         {location ? (
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-xs text-cyan-300 font-mono">
+          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-xs text-cyan-300 font-mono">
             <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span className="truncate max-w-[120px]">{location.city}</span>
+            <span className="truncate max-w-[100px]">{location.city}</span>
             <button
               onClick={clearLocation}
               title="Reset location"
@@ -46,7 +50,7 @@ export default function Navbar() {
           <button
             onClick={enableGps}
             disabled={loading}
-            className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-white/80 transition-all"
+            className="hidden xl:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-white/80 transition-all"
           >
             <Compass className={`w-3.5 h-3.5 text-cyan-400 ${loading ? 'animate-spin' : ''}`} />
             <span>Locate</span>
@@ -54,13 +58,13 @@ export default function Navbar() {
         )}
       </div>
 
-      {/* CENTER SECTION (Col 4-8): EXACT MIDDLE Search Bar */}
-      <div className="col-span-6 flex justify-center w-full max-w-lg mx-auto">
+      {/* CENTER SECTION (Col 5-8): EXACT MIDDLE Search Bar */}
+      <div className="col-span-4 flex justify-center w-full max-w-lg mx-auto">
         <GlobalLocationSearch />
       </div>
 
       {/* RIGHT SECTION (Col 9-12): Segmented Navigation Tabs */}
-      <div className="col-span-3 flex justify-end items-center">
+      <div className="col-span-4 flex justify-end items-center">
         <nav className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/10 shrink-0">
           {navItems.map((tab) => {
             const isActive = pathname === tab.path;
