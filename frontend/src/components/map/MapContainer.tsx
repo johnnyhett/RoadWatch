@@ -1,18 +1,32 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MAP_CONFIG } from '@/lib/constants';
 import { Incident, Blackspot, RouteDetails, UserLocation } from '@/types';
 
-// Dynamic Map Camera Controller — Automatically flies to detected location & invalidates size
+// Failproof Map Controller — Monitors DOM container resizes to guarantee 100% viewport tile coverage
 function MapController({ center, zoom }: { center?: [number, number]; zoom?: number }) {
   const map = useMap();
 
   useEffect(() => {
-    // Invalidate map container size on mount to guarantee 100% tile coverage
-    map.invalidateSize();
+    if (!map) return;
+
+    // Multi-phase invalidateSize to guarantee tile coverage after Next.js layout mount
+    const timer1 = setTimeout(() => map.invalidateSize(), 50);
+    const timer2 = setTimeout(() => map.invalidateSize(), 300);
+    const timer3 = setTimeout(() => map.invalidateSize(), 800);
+
+    // ResizeObserver for dynamic window/sidebar resizing
+    const container = map.getContainer();
+    let resizeObserver: ResizeObserver | null = null;
+    if (container && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      resizeObserver.observe(container);
+    }
 
     if (center && center[0] !== 0 && center[1] !== 0) {
       map.flyTo(center, zoom || 14, {
@@ -21,6 +35,15 @@ function MapController({ center, zoom }: { center?: [number, number]; zoom?: num
         easeLinearity: 0.25,
       });
     }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      if (resizeObserver && container) {
+        resizeObserver.unobserve(container);
+      }
+    };
   }, [center, zoom, map]);
 
   return null;
@@ -139,11 +162,10 @@ export default function AppMap({
       <TileLayer
         url={MAP_CONFIG.tileLayer}
         attribution={MAP_CONFIG.attribution}
-        subdomains="abcd"
         maxZoom={19}
       />
 
-      {/* Automatic Camera FlyTo & Size Invalidation Controller */}
+      {/* Failproof Camera FlyTo & ResizeObserver Controller */}
       <MapController center={activeCenter} zoom={14} />
 
       {/* User Location & Surrounding Area Radius */}
