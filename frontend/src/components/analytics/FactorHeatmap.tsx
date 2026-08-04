@@ -23,9 +23,9 @@ export default function FactorHeatmap() {
       incidents.forEach((inc) => {
         const matches = [
           inc.weather_condition === 'Raining',
-          inc.light_condition.includes('Darkness'),
+          (inc.light_condition || '').includes('Darkness'),
           (inc.contributing_factors || []).includes('Speeding'),
-          inc.road_classification === 'A_Road',
+          inc.road_classification === 'A_Road' || (inc.road_classification || '').includes('A-Road'),
           inc.severity <= 2,
         ];
 
@@ -49,31 +49,36 @@ export default function FactorHeatmap() {
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col pt-2">
-      <div className="flex pl-20 mb-2">
+    <div className="w-full h-full flex flex-col pt-10 pb-3 pr-2">
+      {/* Top Header Labels */}
+      <div className="flex pl-24 mb-4 relative h-8">
         {factors.map((f) => (
-          <div key={f} className="flex-1 text-center text-[10px] text-white/60 -rotate-45 origin-bottom-left h-8 font-mono truncate">
+          <div
+            key={f}
+            className="flex-1 text-center text-[11px] font-bold text-cyan-300 font-mono whitespace-nowrap -rotate-30 origin-left"
+          >
             {f}
           </div>
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col gap-1.5">
+      {/* Grid Matrix Rows */}
+      <div className="flex-1 flex flex-col gap-2">
         {matrix.map((row, i) => (
-          <div key={i} className="flex-1 flex gap-1.5 items-center">
-            <div className="w-20 text-[10px] text-white/60 text-right pr-2 shrink-0 font-mono truncate">
+          <div key={i} className="flex-1 flex gap-2 items-center">
+            <div className="w-24 text-xs font-bold text-white/80 text-right pr-3 shrink-0 font-mono truncate">
               {factors[i]}
             </div>
-            <div className="flex-1 flex gap-1.5 h-full">
+            <div className="flex-1 flex gap-2 h-full">
               {row.map((val, j) => (
                 <div
                   key={j}
-                  className="flex-1 rounded border border-white/5 hover:border-cyan-400 transition-all cursor-pointer relative group flex items-center justify-center"
+                  className="flex-1 rounded-xl border border-white/10 hover:border-cyan-400 transition-all cursor-pointer relative group flex items-center justify-center shadow-inner"
                   style={{
-                    backgroundColor: `rgba(0, 212, 255, ${val * 0.75})`,
+                    backgroundColor: `rgba(0, 212, 255, ${Math.max(0.12, val * 0.75)})`,
                   }}
                 >
-                  <span className="text-[10px] font-mono text-white/90 font-bold opacity-80 group-hover:opacity-100">
+                  <span className="text-xs font-mono text-white font-bold opacity-90 group-hover:scale-110 transition-transform">
                     {val.toFixed(2)}
                   </span>
                 </div>

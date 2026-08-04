@@ -1,352 +1,382 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AssociationRule } from '@/types';
-import { Network, ZoomIn, ZoomOut, RotateCcw, Info, Search, Filter } from 'lucide-react';
-
-interface Node {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  type: 'antecedent_env' | 'antecedent_infra' | 'consequent_severity';
-  connections: number;
-  isDragging?: boolean;
-}
-
-interface Edge {
-  source: Node;
-  target: Node;
-  confidence: number;
-  lift: number;
-  support: number;
-  label: string;
-}
+import { getAssociationRules } from '@/lib/api';
+import { ZoomIn, ZoomOut, RefreshCw, Search, Info } from 'lucide-react';
 
 interface AssociationGraphProps {
   rules?: AssociationRule[];
 }
 
-export default function AssociationGraph({ rules = [] }: AssociationGraphProps) {
+interface Node {
+  id: string;
+  type: 'environment' | 'infrastructure' | 'outcome';
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  connections: number;
+}
+
+interface Link {
+  source: string;
+  target: string;
+  confidence: number;
+  lift: number;
+}
+
+export default function AssociationGraph({ rules: propRules }: AssociationGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<Node | null>(null);
-  const [hoveredEdge, setHoveredEdge] = useState<Edge | null>(null);
-  const [searchFilter, setSearchFilter] = useState('');
-  const [scale, setScale] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const [rules, setRules] = useState<AssociationRule[]>(propRules || []);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [draggedNode, setDraggedNode] = useState<Node | null>(null);
 
   const nodesRef = useRef<Node[]>([]);
-  const edgesRef = useRef<Edge[]>([]);
-  const draggingNodeRef = useRef<Node | null>(null);
-  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const linksRef = useRef<Link[]>([]);
+  const animationRef = useRef<number | null>(null);
 
+  // Fetch rules if not passed as prop
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (propRules && propRules.length > 0) {
+      setRules(propRules);
+    } else {
+      getAssociationRules().then((r) => setRules(r));
+    }
+  }, [propRules]);
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  // Initialize nodes and links bounded nicely inside canvas
+  useEffect(() => {
+    if (!rules || rules.length === 0) return;
 
-    const width = canvas.offsetWidth || 800;
-    const height = canvas.offsetHeight || 450;
-    canvas.width = width;
-    canvas.height = height;
+    const nodesMap = new Map<string, Node>();
+    const links: Link[] = [];
 
-    const rawRules = rules.length > 0 ? rules : [
-      { antecedent: ['Wet Surface', 'Midnight'], consequent: ['Fatal Severity'], support: 0.08, confidence: 0.86, lift: 3.42 },
-      { antecedent: ['Speeding', 'Night'], consequent: ['Serious Injury'], support: 0.14, confidence: 0.78, lift: 2.85 },
-      { antecedent: ['Raining', 'A_Road'], consequent: ['Multi-Vehicle Collision'], support: 0.18, confidence: 0.72, lift: 2.15 },
-      { antecedent: ['Drink_Driving', 'Unlit Junction'], consequent: ['High Risk'], support: 0.09, confidence: 0.82, lift: 3.10 },
-      { antecedent: ['Fog', 'Motorway'], consequent: ['Chain Reaction'], support: 0.06, confidence: 0.68, lift: 2.95 },
-      { antecedent: ['Fatigue', 'Speed Limit 70'], consequent: ['Loss of Control'], support: 0.11, confidence: 0.74, lift: 2.40 },
-    ];
+    const getCategory = (factor: string): 'environment' | 'infrastructure' | 'outcome' => {
+      if (['Fatal Severity', 'Serious Injury', 'Multi-Vehicle Collision', 'High Risk', 'Chain Reaction', 'Loss of Control'].includes(factor)) {
+        return 'outcome';
+      }
+      if (['Speeding', 'Wet Surface', 'Raining', 'Drink_Driving', 'Night', 'Darkness', 'Midnight', 'Fatigue'].includes(factor)) {
+        return 'environment';
+      }
+      return 'infrastructure';
+    };
 
-    const nodeMap: Record<string, Node> = {};
+    const width = containerRef.current?.clientWidth || 700;
+    const height = containerRef.current?.clientHeight || 450;
+    const cx = width / 2;
+    const cy = height / 2;
 
-    rawRules.forEach((rule) => {
-      const antecedents = Array.isArray(rule.antecedent) ? rule.antecedent : [rule.antecedent];
-      const consequents = Array.isArray(rule.consequent) ? rule.consequent : [rule.consequent];
-
-      [...antecedents, ...consequents].forEach((name) => {
-        if (!nodeMap[name]) {
-          const isConsequent = consequents.includes(name);
-          const isInfra = name.includes('Speed') || name.includes('Road') || name.includes('Motorway') || name.includes('Junction');
-          nodeMap[name] = {
-            id: name,
-            label: name,
-            x: width / 2 + (Math.random() - 0.5) * (width * 0.5),
-            y: height / 2 + (Math.random() - 0.5) * (height * 0.5),
-            vx: (Math.random() - 0.5) * 0.4,
-            vy: (Math.random() - 0.5) * 0.4,
-            type: isConsequent ? 'consequent_severity' : isInfra ? 'antecedent_infra' : 'antecedent_env',
-            connections: 1,
-          };
-        } else {
-          nodeMap[name].connections++;
+    rules.forEach((rule) => {
+      rule.antecedent.forEach((ant) => {
+        if (!nodesMap.has(ant)) {
+          nodesMap.set(ant, {
+            id: ant,
+            type: getCategory(ant),
+            x: cx + (Math.random() - 0.5) * 220,
+            y: cy + (Math.random() - 0.5) * 180,
+            vx: 0,
+            vy: 0,
+            radius: 14,
+            connections: 0,
+          });
         }
+        const node = nodesMap.get(ant)!;
+        node.connections += 1;
       });
-    });
 
-    const nodes = Object.values(nodeMap);
-    nodesRef.current = nodes;
+      rule.consequent.forEach((cons) => {
+        if (!nodesMap.has(cons)) {
+          nodesMap.set(cons, {
+            id: cons,
+            type: getCategory(cons),
+            x: cx + (Math.random() - 0.5) * 220,
+            y: cy + (Math.random() - 0.5) * 180,
+            vx: 0,
+            vy: 0,
+            radius: 18,
+            connections: 0,
+          });
+        }
+        const node = nodesMap.get(cons)!;
+        node.connections += 2;
+      });
 
-    const edges: Edge[] = [];
-    rawRules.forEach((rule) => {
-      const antecedents = Array.isArray(rule.antecedent) ? rule.antecedent : [rule.antecedent];
-      const consequents = Array.isArray(rule.consequent) ? rule.consequent : [rule.consequent];
-
-      antecedents.forEach((a) => {
-        consequents.forEach((c) => {
-          if (nodeMap[a] && nodeMap[c]) {
-            edges.push({
-              source: nodeMap[a],
-              target: nodeMap[c],
-              confidence: rule.confidence || 0.7,
-              lift: rule.lift || 2.0,
-              support: rule.support || 0.1,
-              label: `${a} → ${c}`,
-            });
-          }
+      rule.antecedent.forEach((ant) => {
+        rule.consequent.forEach((cons) => {
+          links.push({
+            source: ant,
+            target: cons,
+            confidence: rule.confidence,
+            lift: rule.lift,
+          });
         });
       });
     });
-    edgesRef.current = edges;
 
-    let animId: number;
-    const simulate = () => {
-      // Repulsion force
+    const nodes = Array.from(nodesMap.values());
+    nodes.forEach((n) => {
+      n.radius = Math.min(26, Math.max(12, 10 + n.connections * 2.5));
+    });
+
+    nodesRef.current = nodes;
+    linksRef.current = links;
+  }, [rules]);
+
+  // Spring physics simulation loop with strict canvas boundary collision
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const handleResize = () => {
+      if (containerRef.current && canvas) {
+        canvas.width = containerRef.current.clientWidth;
+        canvas.height = containerRef.current.clientHeight;
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    const runPhysicsAndRender = () => {
+      const width = canvas.width;
+      const height = canvas.height;
+      const nodes = nodesRef.current;
+      const links = linksRef.current;
+
+      const cx = width / 2;
+      const cy = height / 2;
+
+      // 1. Apply Center Gravity Pull
+      nodes.forEach((node) => {
+        const dx = cx - node.x;
+        const dy = cy - node.y;
+        node.vx += dx * 0.008;
+        node.vy += dy * 0.008;
+      });
+
+      // 2. Node Repulsion
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const n1 = nodes[i];
           const n2 = nodes[j];
-          const dx = n2.x - n1.x;
-          const dy = n2.y - n1.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          if (dist < 160) {
-            const force = (160 - dist) / dist * 0.1;
-            if (!n1.isDragging) { n1.vx -= dx * force; n1.vy -= dy * force; }
-            if (!n2.isDragging) { n2.vx += dx * force; n2.vy += dy * force; }
+          let dx = n2.x - n1.x;
+          let dy = n2.y - n1.y;
+          let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const minDist = n1.radius + n2.radius + 60;
+
+          if (dist < minDist) {
+            const force = (minDist - dist) / dist * 0.12;
+            const fx = dx * force;
+            const fy = dy * force;
+
+            if (n1 !== draggedNode) {
+              n1.vx -= fx;
+              n1.vy -= fy;
+            }
+            if (n2 !== draggedNode) {
+              n2.vx += fx;
+              n2.vy += fy;
+            }
           }
         }
       }
 
-      // Edge spring attraction
-      edges.forEach((edge) => {
-        const dx = edge.target.x - edge.source.x;
-        const dy = edge.target.y - edge.source.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = (dist - 130) * 0.006;
-        if (!edge.source.isDragging) { edge.source.vx += dx * force; edge.source.vy += dy * force; }
-        if (!edge.target.isDragging) { edge.target.vx -= dx * force; edge.target.vy -= dy * force; }
-      });
+      // 3. Link Attraction
+      links.forEach((link) => {
+        const source = nodes.find((n) => n.id === link.source);
+        const target = nodes.find((n) => n.id === link.target);
 
-      // Update positions
-      nodes.forEach((n) => {
-        if (!n.isDragging) {
-          n.vx *= 0.86;
-          n.vy *= 0.86;
-          n.x += n.vx;
-          n.y += n.vy;
+        if (source && target) {
+          let dx = target.x - source.x;
+          let dy = target.y - source.y;
+          let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const idealDist = 120;
+          const force = (dist - idealDist) * 0.005;
 
-          const pad = 40;
-          if (n.x < pad) { n.x = pad; n.vx *= -1; }
-          if (n.x > width - pad) { n.x = width - pad; n.vx *= -1; }
-          if (n.y < pad) { n.y = pad; n.vy *= -1; }
-          if (n.y > height - pad) { n.y = height - pad; n.vy *= -1; }
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+
+          if (source !== draggedNode) {
+            source.vx += fx;
+            source.vy += fy;
+          }
+          if (target !== draggedNode) {
+            target.vx -= fx;
+            target.vy -= fy;
+          }
         }
       });
 
-      // Clear Canvas
+      // 4. Update Position with Velocity Damping & STRICT CANVAS BOUNDARIES
+      const pad = 45;
+      nodes.forEach((node) => {
+        if (node === draggedNode) return;
+
+        node.vx *= 0.85;
+        node.vy *= 0.85;
+
+        node.x += node.vx;
+        node.y += node.vy;
+
+        // Strict canvas bounding box (never shoot off-screen)
+        node.x = Math.max(pad, Math.min(width - pad, node.x));
+        node.y = Math.max(pad, Math.min(height - pad, node.y));
+      });
+
+      // 5. RENDER CANVAS
       ctx.clearRect(0, 0, width, height);
-      ctx.save();
-      ctx.translate(pan.x, pan.y);
-      ctx.scale(scale, scale);
 
-      // Draw Edges
-      edges.forEach((e) => {
-        const isMatched = !searchFilter || e.source.label.toLowerCase().includes(searchFilter.toLowerCase()) || e.target.label.toLowerCase().includes(searchFilter.toLowerCase());
-        const opacity = isMatched ? Math.min(0.85, e.confidence * 0.9) : 0.15;
+      // Draw Links
+      links.forEach((link) => {
+        const source = nodes.find((n) => n.id === link.source);
+        const target = nodes.find((n) => n.id === link.target);
 
-        ctx.beginPath();
-        ctx.moveTo(e.source.x, e.source.y);
-        ctx.lineTo(e.target.x, e.target.y);
-        ctx.strokeStyle = isMatched ? `rgba(0, 212, 255, ${opacity})` : 'rgba(255,255,255,0.05)';
-        ctx.lineWidth = isMatched ? Math.max(1.5, e.lift * 0.75) : 1;
-        ctx.stroke();
+        if (source && target) {
+          const isHighlighted =
+            selectedNode && (selectedNode.id === source.id || selectedNode.id === target.id);
 
-        // Arrow mid-point marker
-        const midX = (e.source.x + e.target.x) / 2;
-        const midY = (e.source.y + e.target.y) / 2;
-        ctx.beginPath();
-        ctx.arc(midX, midY, 3, 0, Math.PI * 2);
-        ctx.fillStyle = isMatched ? '#00d4ff' : 'rgba(255,255,255,0.2)';
-        ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(source.x, source.y);
+          ctx.lineTo(target.x, target.y);
+          ctx.strokeStyle = isHighlighted ? '#00d4ff' : 'rgba(0, 212, 255, 0.25)';
+          ctx.lineWidth = isHighlighted ? 3 : Math.max(1.2, link.confidence * 3);
+          ctx.stroke();
+        }
       });
 
       // Draw Nodes
-      nodes.forEach((n) => {
-        const isMatched = !searchFilter || n.label.toLowerCase().includes(searchFilter.toLowerCase());
-        const radius = Math.min(18, 10 + n.connections * 2.5);
+      nodes.forEach((node) => {
+        const isMatched = searchTerm && node.id.toLowerCase().includes(searchTerm.toLowerCase());
+        const isSelected = selectedNode?.id === node.id;
 
         ctx.beginPath();
-        ctx.arc(n.x, n.y, radius, 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, node.radius * (isSelected ? 1.25 : 1), 0, Math.PI * 2);
 
-        const color = n.type === 'consequent_severity' 
-          ? '#ef4444' 
-          : n.type === 'antecedent_infra' 
-          ? '#f59e0b' 
-          : '#00d4ff';
+        let fillColor = '#00d4ff';
+        if (node.type === 'environment') fillColor = '#38bdf8';
+        if (node.type === 'infrastructure') fillColor = '#f59e0b';
+        if (node.type === 'outcome') fillColor = '#ef4444';
 
-        ctx.fillStyle = isMatched ? color : 'rgba(255,255,255,0.2)';
-        ctx.shadowColor = color;
-        ctx.shadowBlur = isMatched ? 10 : 0;
+        ctx.fillStyle = fillColor;
+        ctx.shadowColor = fillColor;
+        ctx.shadowBlur = isSelected || isMatched ? 16 : 8;
         ctx.fill();
+
+        ctx.lineWidth = isSelected ? 3 : 1.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
         ctx.shadowBlur = 0;
 
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Node Label
-        ctx.fillStyle = isMatched ? '#ffffff' : 'rgba(255,255,255,0.3)';
-        ctx.font = '11px font-sans, sans-serif';
+        // Draw Label
+        ctx.font = `${isSelected ? 'bold 12px' : '11px'} "Inter", sans-serif`;
+        ctx.fillStyle = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.85)';
         ctx.textAlign = 'center';
-        ctx.fillText(n.label, n.x, n.y + radius + 14);
+        ctx.fillText(node.id, node.x, node.y + node.radius + 14);
       });
 
-      ctx.restore();
-
-      animId = requestAnimationFrame(simulate);
+      animationRef.current = requestAnimationFrame(runPhysicsAndRender);
     };
 
-    simulate();
+    animationRef.current = requestAnimationFrame(runPhysicsAndRender);
 
-    return () => cancelAnimationFrame(animId);
-  }, [rules, scale, pan, searchFilter]);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [draggedNode, selectedNode, searchTerm]);
 
+  // Click & Drag interactions
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x) / scale;
-    const y = (e.clientY - rect.top - pan.y) / scale;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-    const clicked = nodesRef.current.find(
-      (n) => Math.hypot(n.x - x, n.y - y) < 22
-    );
+    const clicked = nodesRef.current.find((n) => {
+      const dx = n.x - x;
+      const dy = n.y - y;
+      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 5;
+    });
 
     if (clicked) {
-      clicked.isDragging = true;
-      draggingNodeRef.current = clicked;
-      setHoveredNode(clicked);
+      setDraggedNode(clicked);
+      setSelectedNode(clicked);
+    } else {
+      setSelectedNode(null);
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x) / scale;
-    const y = (e.clientY - rect.top - pan.y) / scale;
-
-    if (draggingNodeRef.current) {
-      draggingNodeRef.current.x = x;
-      draggingNodeRef.current.y = y;
-    } else {
-      const hover = nodesRef.current.find(
-        (n) => Math.hypot(n.x - x, n.y - y) < 22
-      );
-      setHoveredNode(hover || null);
-    }
+    if (!draggedNode || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    draggedNode.x = e.clientX - rect.left;
+    draggedNode.y = e.clientY - rect.top;
+    draggedNode.vx = 0;
+    draggedNode.vy = 0;
   };
 
   const handleMouseUp = () => {
-    if (draggingNodeRef.current) {
-      draggingNodeRef.current.isDragging = false;
-      draggingNodeRef.current = null;
-    }
+    setDraggedNode(null);
   };
 
   return (
-    <div className="w-full h-full relative overflow-hidden flex flex-col bg-[#0a0a0f] rounded-xl border border-white/10">
-      {/* Top Topology Controls */}
-      <div className="p-3 bg-white/5 border-b border-white/10 flex items-center justify-between gap-3 z-10 text-xs">
-        <div className="flex items-center gap-2 flex-1 max-w-xs">
-          <Search className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+    <div ref={containerRef} className="relative w-full h-[450px] bg-[#090d14] rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
+      {/* Top Header Controls */}
+      <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10 pointer-events-none">
+        <div className="flex items-center gap-2 pointer-events-auto bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+          <Search className="w-3.5 h-3.5 text-cyan-400" />
           <input
             type="text"
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search factor node..."
-            className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1 text-white text-xs focus:outline-none focus:border-cyan-500"
+            className="bg-transparent text-xs text-white focus:outline-none w-36 font-mono placeholder:text-white/40"
           />
         </div>
 
-        {/* Legend Pills */}
-        <div className="hidden sm:flex items-center gap-3 text-[11px]">
-          <div className="flex items-center gap-1.5 text-cyan-300">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" /> Environment
-          </div>
-          <div className="flex items-center gap-1.5 text-amber-300">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Infrastructure
-          </div>
-          <div className="flex items-center gap-1.5 text-red-300">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Severity Outcome
-          </div>
-        </div>
-
-        {/* Canvas Controls */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setScale((s) => Math.min(2, s + 0.15))}
-            className="p-1 rounded bg-white/5 hover:bg-white/10 text-white/80"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setScale((s) => Math.max(0.6, s - 0.15))}
-            className="p-1 rounded bg-white/5 hover:bg-white/10 text-white/80"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }}
-            className="p-1 rounded bg-white/5 hover:bg-white/10 text-white/80"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
+        {/* Legend */}
+        <div className="hidden sm:flex items-center gap-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-white/80 pointer-events-auto">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-[#38bdf8]" /> Environment
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-[#f59e0b]" /> Infrastructure
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-[#ef4444]" /> Severity Outcome
+          </span>
         </div>
       </div>
 
+      {/* Interactive Physics Canvas */}
       <canvas
         ref={canvasRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        className="w-full h-full block cursor-grab active:cursor-grabbing"
+        className="w-full h-full cursor-grab active:cursor-grabbing"
       />
 
-      {/* Hover Node Inspector Card */}
-      {hoveredNode && (
-        <div className="absolute bottom-3 left-3 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 p-3 rounded-xl z-20 text-xs shadow-2xl space-y-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                hoveredNode.type === 'consequent_severity'
-                  ? 'bg-red-500'
-                  : hoveredNode.type === 'antecedent_infra'
-                  ? 'bg-amber-400'
-                  : 'bg-cyan-400'
-              }`}
-            />
-            <strong className="text-white text-sm">{hoveredNode.label}</strong>
+      {/* Selected Node Inspector Card */}
+      {selectedNode && (
+        <div className="absolute bottom-3 left-3 bg-[#0d1117]/95 backdrop-blur-xl border border-cyan-500/30 p-3 rounded-xl z-10 max-w-xs shadow-2xl space-y-1">
+          <div className="flex items-center justify-between">
+            <strong className="text-xs text-cyan-300 font-bold font-heading">{selectedNode.id}</strong>
+            <span className="text-[10px] text-white/50 font-mono">
+              {selectedNode.type.toUpperCase()}
+            </span>
           </div>
-          <p className="text-white/60">
-            Type: {hoveredNode.type === 'consequent_severity' ? 'Severity Outcome' : 'Antecedent Factor'}
+          <p className="text-[11px] text-white/70">
+            Connected in <strong>{selectedNode.connections}</strong> frequent co-occurrence safety rules.
           </p>
-          <p className="text-white/60">Rule Connections: {hoveredNode.connections}</p>
         </div>
       )}
     </div>
