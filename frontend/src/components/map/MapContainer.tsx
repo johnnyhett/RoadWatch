@@ -6,12 +6,15 @@ import L from 'leaflet';
 import { MAP_CONFIG } from '@/lib/constants';
 import { Incident, Blackspot, RouteDetails, UserLocation } from '@/types';
 
-// Custom Map Controller for smooth flyTo camera movements
+// Dynamic Map Camera Controller — Automatically flies to detected location
 function MapController({ center, zoom }: { center?: [number, number]; zoom?: number }) {
   const map = useMap();
   useEffect(() => {
-    if (center) {
-      map.flyTo(center, zoom || 14, { duration: 1.5 });
+    if (center && center[0] !== 0 && center[1] !== 0) {
+      map.flyTo(center, zoom || 14, {
+        animate: true,
+        duration: 1.6,
+      });
     }
   }, [center, zoom, map]);
   return null;
@@ -83,6 +86,12 @@ export default function AppMap({
   onSelectBlackspot,
   flyToCoords = null,
 }: MapProps) {
+  const activeCenter: [number, number] = useMemo(() => {
+    if (flyToCoords) return flyToCoords;
+    if (userLocation) return [userLocation.latitude, userLocation.longitude];
+    return MAP_CONFIG.center;
+  }, [flyToCoords, userLocation]);
+
   const filteredIncidents = useMemo(() => {
     if (selectedSeverity) {
       return incidents.filter((i) => i.severity === selectedSeverity);
@@ -98,12 +107,8 @@ export default function AppMap({
 
   return (
     <MapContainer
-      center={
-        userLocation
-          ? [userLocation.latitude, userLocation.longitude]
-          : MAP_CONFIG.center
-      }
-      zoom={userLocation ? 14 : MAP_CONFIG.zoom}
+      center={activeCenter}
+      zoom={14}
       className="w-full h-full z-0"
       zoomControl={false}
     >
@@ -112,10 +117,8 @@ export default function AppMap({
         attribution={MAP_CONFIG.attribution}
       />
 
-      {flyToCoords && <MapController center={flyToCoords} zoom={15} />}
-      {userLocation && !flyToCoords && (
-        <MapController center={[userLocation.latitude, userLocation.longitude]} zoom={14} />
-      )}
+      {/* Automatic Camera FlyTo Controller */}
+      <MapController center={activeCenter} zoom={14} />
 
       {/* User Location & Surrounding Area Radius */}
       {userLocation && (
@@ -137,9 +140,9 @@ export default function AppMap({
           >
             <Popup>
               <div className="p-1 space-y-1 text-xs text-white min-w-[180px]">
-                <strong className="text-cyan-400 block font-semibold text-xs">Your Current Location</strong>
+                <strong className="text-cyan-400 block font-semibold text-xs">Your Location</strong>
                 <p><strong>Area:</strong> {userLocation.city || 'Detected Region'}</p>
-                <p><strong>Country:</strong> {userLocation.country || 'Global'}</p>
+                <p><strong>Country:</strong> {userLocation.country || 'Ghana'}</p>
                 <p className="font-mono text-[10px] text-white/50 pt-0.5 border-t border-white/10 mt-1">
                   {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
                 </p>
