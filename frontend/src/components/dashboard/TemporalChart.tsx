@@ -20,7 +20,7 @@ export default function TemporalChart() {
     getTemporalPatterns()
       .then((patterns) => {
         if (patterns.hourly_distribution) {
-          const hourly = patterns.hourly_distribution.map((h) => ({
+          const hourly = patterns.hourly_distribution.map((h: { hour: number; count: number }) => ({
             hour: `${String(h.hour).padStart(2, '0')}:00`,
             incidents: h.count,
           }));
@@ -43,7 +43,7 @@ export default function TemporalChart() {
       transition={{ delay: 0.3, duration: 0.4 }}
       className="glass-card p-3 h-48 flex flex-col bg-[#0d1117]/90 border-white/15"
     >
-      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-2">
+      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-2 font-mono">
         Hourly Crash Frequency
       </h3>
       <div className="flex-1 w-full relative">

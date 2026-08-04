@@ -18,55 +18,26 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="h-14 bg-[#090d14] border-b border-white/10 z-50 flex items-center justify-between px-5 shrink-0 relative gap-4 shadow-xl">
-      {/* Brand Identity with Custom RoadWatch Logo */}
-      <Link href="/" className="flex items-center gap-3 shrink-0 group">
-        <RoadWatchLogo size={32} className="group-hover:scale-105 transition-transform duration-300" />
-        <div>
-          <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-1">
-            Road<span className="text-cyan-400">Watch</span>
-          </h1>
-          <p className="text-[9px] text-white/40 font-mono hidden sm:block">Road Safety Intelligence Engine</p>
-        </div>
-      </Link>
+    <header className="h-14 bg-[#090d14] border-b border-white/10 z-50 grid grid-cols-12 items-center px-5 shrink-0 relative gap-4 shadow-xl">
+      {/* LEFT SECTION (Col 1-3): Brand Identity & Location Badge */}
+      <div className="col-span-3 flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+          <RoadWatchLogo size={30} className="group-hover:scale-105 transition-transform duration-300" />
+          <div>
+            <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-1 font-heading">
+              Road<span className="text-cyan-400">Watch</span>
+            </h1>
+          </div>
+        </Link>
 
-      {/* Global Location Search Bar */}
-      <div className="flex-1 max-w-md hidden md:block">
-        <GlobalLocationSearch />
-      </div>
-
-      {/* Segmented Navigation Tabs */}
-      <nav className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/10 shrink-0">
-        {navItems.map((tab) => {
-          const isActive = pathname === tab.path;
-          const Icon = tab.icon;
-          return (
-            <Link
-              key={tab.name}
-              href={tab.path}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 ${
-                isActive 
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(0,212,255,0.25)]' 
-                  : 'text-white/60 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-cyan-400' : 'text-white/50'}`} />
-              <span>{tab.name}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* GPS Location Status Badge */}
-      <div className="flex items-center gap-3 shrink-0">
         {location ? (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-xs text-cyan-300 shadow-[0_0_10px_rgba(0,212,255,0.15)]">
-            <Globe className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            <span className="font-semibold">{location.city || 'Region'}, {location.country || 'Global'}</span>
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-xs text-cyan-300 font-mono">
+            <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span className="truncate max-w-[120px]">{location.city}</span>
             <button
               onClick={clearLocation}
               title="Reset location"
-              className="ml-1 text-white/40 hover:text-red-400 text-xs font-bold"
+              className="ml-0.5 text-white/40 hover:text-red-400 text-xs font-bold"
             >
               ✕
             </button>
@@ -75,12 +46,41 @@ export default function Navbar() {
           <button
             onClick={enableGps}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/40 text-xs font-medium text-white/80 transition-all"
+            className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-white/80 transition-all"
           >
             <Compass className={`w-3.5 h-3.5 text-cyan-400 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{loading ? 'Locating...' : 'Enable Location'}</span>
+            <span>Locate</span>
           </button>
         )}
+      </div>
+
+      {/* CENTER SECTION (Col 4-8): EXACT MIDDLE Search Bar */}
+      <div className="col-span-6 flex justify-center w-full max-w-lg mx-auto">
+        <GlobalLocationSearch />
+      </div>
+
+      {/* RIGHT SECTION (Col 9-12): Segmented Navigation Tabs */}
+      <div className="col-span-3 flex justify-end items-center">
+        <nav className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/10 shrink-0">
+          {navItems.map((tab) => {
+            const isActive = pathname === tab.path;
+            const Icon = tab.icon;
+            return (
+              <Link
+                key={tab.name}
+                href={tab.path}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 ${
+                  isActive 
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(0,212,255,0.25)]' 
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-cyan-400' : 'text-white/50'}`} />
+                <span className="hidden sm:inline">{tab.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </header>
   );

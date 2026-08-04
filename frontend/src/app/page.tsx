@@ -13,15 +13,15 @@ import RiskPredictor from '@/components/prediction/RiskPredictor';
 import { getIncidents, getBlackspots, setGlobalLocationCenter } from '@/lib/api';
 import { Incident, Blackspot } from '@/types';
 import { useLocationContext } from '@/context/LocationContext';
-import { Layers, Filter, Target, Zap, Compass, Globe, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Layers, Filter, Target, Zap, Compass, Globe, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Eye, Info, Database } from 'lucide-react';
 
 const Map = dynamic(() => import('@/components/map/MapContainer'), { 
   ssr: false,
   loading: () => (
-    <div className="w-full h-full bg-[#0a0a0f] flex items-center justify-center">
+    <div className="w-full h-full bg-[#070a0f] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
-        <p className="text-white/60 text-xs font-medium">Loading map and incident data...</p>
+        <p className="text-white/60 text-xs font-medium font-mono">Loading map and incident data...</p>
       </div>
     </div>
   )
@@ -63,10 +63,9 @@ export default function Dashboard() {
     }
   }, []);
 
-  // When location changes globally, update data for that city!
   useEffect(() => {
-    const lat = location?.latitude || 51.505;
-    const lng = location?.longitude || -0.09;
+    const lat = location?.latitude || 6.6885;
+    const lng = location?.longitude || -1.6244;
     loadDataForLocation(lat, lng);
   }, [location, loadDataForLocation]);
 
@@ -83,8 +82,25 @@ export default function Dashboard() {
     }
   };
 
+  // 1-Click Analytical View Presets
+  const setPresetMode = (mode: 'full' | 'hotspots' | 'heatmap') => {
+    if (mode === 'full') {
+      setShowHeatmap(true);
+      setShowBlackspots(true);
+      setShowIncidents(true);
+    } else if (mode === 'hotspots') {
+      setShowHeatmap(false);
+      setShowBlackspots(true);
+      setShowIncidents(false);
+    } else if (mode === 'heatmap') {
+      setShowHeatmap(true);
+      setShowBlackspots(false);
+      setShowIncidents(false);
+    }
+  };
+
   return (
-    <div className="w-full h-full relative overflow-hidden bg-[#0a0a0f]">
+    <div className="w-full h-full relative overflow-hidden bg-[#070a0f]">
       {/* Background Fullscreen Map Canvas */}
       <div className="absolute inset-0 z-0">
         <Map
@@ -117,48 +133,80 @@ export default function Dashboard() {
               {leftPanelOpen && (
                 <motion.div
                   initial={{ opacity: 0, x: -20, width: 0 }}
-                  animate={{ opacity: 1, x: 0, width: '310px' }}
+                  animate={{ opacity: 1, x: 0, width: '320px' }}
                   exit={{ opacity: 0, x: -20, width: 0 }}
                   className="flex flex-col gap-2.5 max-h-[calc(100vh-120px)] overflow-hidden"
                 >
-                  {/* Map Controls */}
-                  <div className="glass-card p-3 space-y-2.5 bg-[#0d1117]/90 border-white/15">
+                  {/* Pattern Discovery Layer Controls */}
+                  <div className="glass-card p-3 space-y-3 bg-[#0d1117]/95 border-white/15 shadow-2xl">
                     <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                      <h2 className="text-xs font-semibold uppercase tracking-wider text-white/90 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-cyan-400" /> Display Controls
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-white/90 flex items-center gap-1.5 font-heading">
+                        <Layers className="w-3.5 h-3.5 text-cyan-400" /> Spatial Pattern Layers
                       </h2>
                       <div className="flex gap-1">
                         <button
                           onClick={handleFlyToMyLocation}
-                          className="px-2 py-0.5 bg-white/5 text-cyan-300 border border-white/10 rounded text-[10px] font-medium hover:bg-white/10 transition-colors flex items-center gap-1"
+                          className="px-2 py-0.5 bg-white/5 text-cyan-300 border border-white/10 rounded text-[10px] font-mono hover:bg-white/10 transition-colors flex items-center gap-1"
                         >
                           <Compass className={`w-3 h-3 text-cyan-400 ${locLoading ? 'animate-spin' : ''}`} />
-                          {location ? 'My Location' : 'Locate Me'}
+                          {location ? 'My Area' : 'Locate'}
                         </button>
                         <button
                           onClick={() => setShowRiskModal(true)}
-                          className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded text-[10px] font-medium hover:bg-cyan-500/30 transition-colors flex items-center gap-1"
+                          className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded text-[10px] font-mono hover:bg-cyan-500/30 transition-colors flex items-center gap-1"
                         >
-                          <Zap className="w-3 h-3 text-cyan-400" /> Assess Risk
+                          <Zap className="w-3 h-3 text-cyan-400" /> Predict
                         </button>
                       </div>
                     </div>
 
-                    {/* Location Banner if enabled */}
-                    {location && (
-                      <div className="p-1.5 bg-white/5 border border-white/10 rounded-md flex items-center justify-between text-[11px] text-white/80">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                          <span className="truncate">{location.city}, {location.country}</span>
-                        </div>
+                    {/* Quick Analytical Presets */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-white/50 font-mono block uppercase font-semibold">
+                        Analytical Presets
+                      </span>
+                      <div className="grid grid-cols-3 gap-1 text-[10px]">
+                        <button
+                          onClick={() => setPresetMode('hotspots')}
+                          className={`py-1 px-1 rounded text-center font-mono border transition-all ${
+                            showBlackspots && !showHeatmap && !showIncidents
+                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold'
+                              : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                          }`}
+                        >
+                          Hotspots Only
+                        </button>
+                        <button
+                          onClick={() => setPresetMode('heatmap')}
+                          className={`py-1 px-1 rounded text-center font-mono border transition-all ${
+                            showHeatmap && !showBlackspots && !showIncidents
+                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold'
+                              : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                          }`}
+                        >
+                          KDE Heatmap
+                        </button>
+                        <button
+                          onClick={() => setPresetMode('full')}
+                          className={`py-1 px-1 rounded text-center font-mono border transition-all ${
+                            showHeatmap && showBlackspots && showIncidents
+                              ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 font-bold'
+                              : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                          }`}
+                        >
+                          Full View
+                        </button>
                       </div>
-                    )}
+                    </div>
 
-                    {/* Aligned Toggle Switches */}
-                    <div className="space-y-2 text-xs">
-                      {/* Heatmap Toggle */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-white/80">Risk Heatmap</span>
+                    {/* ALIGNED TOGGLE SWITCHES WITH HELPER DESCRIPTIONS */}
+                    <div className="space-y-2.5 pt-1 border-t border-white/10 text-xs">
+                      {/* Risk Heatmap */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <span className="text-white/90 font-medium block text-xs">Risk Density Surface</span>
+                          <span className="text-[10px] text-white/40 block font-mono">Continuous KDE kernel risk</span>
+                        </div>
                         <button
                           onClick={() => setShowHeatmap(!showHeatmap)}
                           className={`w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 p-0.5 ${
@@ -174,8 +222,11 @@ export default function Dashboard() {
                       </div>
 
                       {/* Blackspots Toggle */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-white/80">High-Risk Clusters</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <span className="text-white/90 font-medium block text-xs">HDBSCAN Blackspots</span>
+                          <span className="text-[10px] text-white/40 block font-mono">Isolated high-risk clusters</span>
+                        </div>
                         <button
                           onClick={() => setShowBlackspots(!showBlackspots)}
                           className={`w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 p-0.5 ${
@@ -191,8 +242,11 @@ export default function Dashboard() {
                       </div>
 
                       {/* Incidents Toggle */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-white/80">Accident Records ({incidents.length})</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <span className="text-white/90 font-medium block text-xs">Crash Incidents ({incidents.length})</span>
+                          <span className="text-[10px] text-white/40 block font-mono">Granular accident markers</span>
+                        </div>
                         <button
                           onClick={() => setShowIncidents(!showIncidents)}
                           className={`w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 p-0.5 ${
@@ -210,7 +264,7 @@ export default function Dashboard() {
 
                     {/* Severity Filter Pills */}
                     <div className="pt-2 border-t border-white/10">
-                      <span className="text-[10px] text-white/50 block mb-1.5 font-semibold uppercase tracking-wider flex items-center gap-1">
+                      <span className="text-[10px] text-white/50 block mb-1.5 font-semibold uppercase tracking-wider flex items-center gap-1 font-mono">
                         <Filter className="w-3 h-3" /> Severity Filter
                       </span>
                       <div className="grid grid-cols-5 gap-1 text-[10px]">
@@ -224,7 +278,7 @@ export default function Dashboard() {
                           <button
                             key={s.label}
                             onClick={() => setSelectedSeverity(s.val)}
-                            className={`py-1 rounded text-center transition-all ${
+                            className={`py-1 rounded text-center font-mono transition-all ${
                               selectedSeverity === s.val
                                 ? 'bg-cyan-500 text-white font-bold'
                                 : 'bg-white/5 text-white/70 hover:bg-white/10'
@@ -238,9 +292,9 @@ export default function Dashboard() {
                   </div>
 
                   {/* Blackspots Hotspots List */}
-                  <div className="glass-card p-2.5 flex flex-col gap-2 flex-1 min-h-0 overflow-hidden bg-[#0d1117]/90 border-white/15">
+                  <div className="glass-card p-2.5 flex flex-col gap-2 flex-1 min-h-0 overflow-hidden bg-[#0d1117]/95 border-white/15">
                     <div className="flex items-center justify-between px-1">
-                      <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-heading">
                         <Target className="w-3.5 h-3.5 text-red-400" /> High-Risk Hotspots ({blackspots.length})
                       </h3>
                     </div>
