@@ -1,120 +1,91 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { Radio, Navigation } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { Radio, Navigation, AlertTriangle, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface IncidentAlert {
+  id: string;
+  time: string;
+  message: string;
+  lat: number;
+  lng: number;
+  type: 'accident' | 'hazard' | 'blackspot';
+}
 
 interface LiveTickerProps {
   onFlyTo?: (lat: number, lng: number) => void;
 }
 
-interface IncidentEvent {
-  eventId: string;
-  type: string;
-  location?: [number, number];
-  lat?: number;
-  lng?: number;
-  message: string;
-  severity: string;
-  time: string;
-}
-
 export default function LiveTicker({ onFlyTo }: LiveTickerProps) {
-  const { latestEvent, isConnected } = useWebSocket();
-  const [events, setEvents] = useState<IncidentEvent[]>([
-    {
-      eventId: '1',
-      type: 'HOTSPOT_ALERT',
-      lat: 51.5155,
-      lng: -0.1419,
-      message: 'High-risk incident cluster detected near Oxford Circus',
-      severity: 'HIGH',
-      time: 'Just now',
-    },
-    {
-      eventId: '2',
-      type: 'WEATHER_ANOMALY',
-      lat: 51.5013,
-      lng: -0.1248,
-      message: 'Weather hazard: Rain and unlit road surface increase risk',
-      severity: 'MEDIUM',
-      time: '2m ago',
-    },
-    {
-      eventId: '3',
-      type: 'SAFETY_REROUTE',
-      lat: 51.5081,
-      lng: -0.0759,
-      message: 'Safety navigation: Detour path calculated avoiding crash hotspot',
-      severity: 'LOW',
-      time: '4m ago',
-    },
+  const [alerts, setAlerts] = useState<IncidentAlert[]>([
+    { id: '1', time: '1m ago', message: 'High-risk collision reported near Central Junction', lat: 6.6885, lng: -1.6244, type: 'accident' },
+    { id: '2', time: '3m ago', message: 'Rain hazard & unlit surface increasing crash probability', lat: 6.7050, lng: -1.6050, type: 'hazard' },
+    { id: '3', time: '5m ago', message: 'HDBSCAN identified high-risk cluster formation on Highway Bypass', lat: 6.6745, lng: -1.5714, type: 'blackspot' },
   ]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    if (latestEvent) {
-      const inc = latestEvent.incident;
-      const newEvt: IncidentEvent = {
-        eventId: latestEvent.eventId || String(Date.now()),
-        type: latestEvent.type || 'NEW_INCIDENT',
-        lat: inc?.latitude || 51.5074,
-        lng: inc?.longitude || -0.1278,
-        message: `Incident reported at (${inc?.latitude?.toFixed(4)}, ${inc?.longitude?.toFixed(4)}) — ${latestEvent.predictedSeverity || 'HIGH'} Risk`,
-        severity: latestEvent.predictedSeverity || 'HIGH',
-        time: 'Live',
-      };
-
-      setEvents((prev) => [newEvt, ...prev.slice(0, 9)]);
-      setCurrentIndex(0);
-    }
-  }, [latestEvent]);
-
-  useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % events.length);
-    }, 4500);
+      setCurrentIndex((prev) => (prev + 1) % alerts.length);
+    }, 6000);
     return () => clearInterval(timer);
-  }, [events.length]);
+  }, [alerts.length]);
 
-  const current = events[currentIndex] || events[0];
+  const current = alerts[currentIndex];
+
+  const handleFly = () => {
+    if (onFlyTo && current) {
+      onFlyTo(current.lat, current.lng);
+    }
+  };
 
   return (
-    <div className="glass-card px-4 py-2.5 flex items-center justify-between gap-4 overflow-hidden border-white/10">
-      {/* Live Indicator */}
-      <div className="flex items-center gap-2 px-2.5 py-1 bg-red-500/10 text-red-400 rounded-md shrink-0 border border-red-500/20 text-xs font-semibold">
-        <Radio className="w-3.5 h-3.5 animate-pulse text-red-400" />
-        <span>Incident Feed</span>
+    <div className="glass-card px-4 py-2 flex items-center justify-between gap-3 bg-[#0d1117]/95 border-white/15 shadow-2xl rounded-xl">
+      {/* Feed Identifier */}
+      <div className="flex items-center gap-2 shrink-0 border-r border-white/10 pr-3">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500" />
+        </span>
+        <div className="flex items-center gap-1.5 text-xs font-bold text-white font-mono">
+          <Radio className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Incident Feed</span>
+        </div>
       </div>
 
-      {/* Message Text Slider */}
-      <div className="flex-1 overflow-hidden relative h-5">
+      {/* Animated Alert Ticker Message */}
+      <div className="flex-1 overflow-hidden h-6 flex items-center">
         <AnimatePresence mode="wait">
           <motion.div
-            key={current?.eventId || currentIndex}
-            initial={{ opacity: 0, y: 15 }}
+            key={current.id}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
+            exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
-            className="absolute inset-0 flex items-center text-xs text-white/90 truncate"
+            className="flex items-center gap-2 text-xs font-mono truncate"
           >
-            <span className="text-white/40 font-mono text-[11px] mr-2">[{current?.time}]</span>
-            <span className="truncate">{current?.message}</span>
+            <span className="px-1.5 py-0.5 rounded bg-white/10 text-white/50 text-[10px] shrink-0">
+              [{current.time}]
+            </span>
+            <span className="text-white/90 truncate flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              {current.message}
+            </span>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Fly-To Button */}
-      {current?.lat && current?.lng && onFlyTo && (
-        <button
-          onClick={() => onFlyTo(current.lat!, current.lng!)}
-          className="px-2.5 py-1 rounded bg-white/5 text-white/80 border border-white/10 text-xs font-medium hover:bg-white/10 transition-colors flex items-center gap-1 shrink-0"
-        >
-          <Navigation className="w-3 h-3 text-cyan-400" /> View on Map
-        </button>
-      )}
+      {/* Interactive FlyTo Button */}
+      <button
+        onClick={handleFly}
+        className="px-3 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/25 hover:border-cyan-400 text-xs font-mono text-cyan-300 font-semibold transition-all flex items-center gap-1.5 shrink-0"
+      >
+        <Navigation className="w-3 h-3 text-cyan-400" />
+        <span>View on Map</span>
+        <ChevronRight className="w-3 h-3 text-cyan-400" />
+      </button>
     </div>
   );
 }
