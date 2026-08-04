@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Database, ShieldCheck, Check, ChevronDown, Globe } from 'lucide-react';
+import { Database, ShieldCheck, Check, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface DataSource {
@@ -65,6 +65,38 @@ export const COUNTRY_DATA_SOURCES: { countryGroup: string; flag: string; sources
     ],
   },
   {
+    countryGroup: 'European Union',
+    flag: '🇪🇺',
+    sources: [
+      {
+        id: 'eu_care',
+        country: 'European Union',
+        flag: '🇪🇺',
+        name: 'EU CARE Road Safety Observatory',
+        provider: 'European Commission (ERSO)',
+        records: 'EU Community Road Accident Database',
+        license: 'EU Open Data Portal',
+        badge: 'Continental ERSO',
+      },
+    ],
+  },
+  {
+    countryGroup: 'Japan & Asia-Pacific',
+    flag: '🇯🇵',
+    sources: [
+      {
+        id: 'itarda',
+        country: 'Japan',
+        flag: '🇯🇵',
+        name: 'ITARDA Traffic Research Database',
+        provider: 'Japan National Police Agency & ITARDA',
+        records: 'Precision Urban Micro-Collision Logs',
+        license: 'Japan Public Data',
+        badge: 'Precision Analytics',
+      },
+    ],
+  },
+  {
     countryGroup: 'Global / Multi-National',
     flag: '🌐',
     sources: [
@@ -105,7 +137,7 @@ export default function DataSourceSelector() {
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            className="absolute top-full left-0 mt-2 w-84 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 rounded-xl p-3 z-50 shadow-2xl space-y-3 max-h-96 overflow-y-auto"
+            className="absolute top-full left-0 mt-2 w-88 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 rounded-xl p-3 z-50 shadow-2xl space-y-3 max-h-96 overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <span className="text-[10px] font-mono font-bold text-white/60 uppercase tracking-wider flex items-center gap-1.5">
