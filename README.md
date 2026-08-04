@@ -11,19 +11,9 @@
 
 ---
 
-## Screenshots
+## RoadWatch System Interface
 
-### 1. Spatial Pattern Recognition & Live Map Dashboard
-![Live Map Dashboard](docs/images/dashboard_map.png)
-
-### 2. FP-Growth Pattern Analytics & Association Topology
-![Pattern Analytics Engine](docs/images/pattern_analytics.png)
-
-### 3. Multi-Modal Safest Route Navigation Engine
-![Route Safety Navigation](docs/images/route_safety.png)
-
-### 4. Merged National Data Horizons Selector
-![Data Sources Horizon](docs/images/data_sources.png)
+![RoadWatch Primary Dashboard](docs/images/roadwatch_dashboard.png)
 
 ---
 
