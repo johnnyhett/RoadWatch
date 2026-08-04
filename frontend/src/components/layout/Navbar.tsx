@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Map, BarChart2, Navigation, Globe, Compass, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Map, BarChart2, Navigation, Globe, Compass, ShieldCheck, SlidersHorizontal, Sun, Moon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocationContext } from '@/context/LocationContext';
+import { useUserPreferences } from '@/context/UserPreferencesContext';
 import GlobalLocationSearch from './GlobalLocationSearch';
 import DataSourceSelector from './DataSourceSelector';
 import RoadWatchLogo from '../ui/RoadWatchLogo';
@@ -14,6 +15,8 @@ import PersonalizationDrawer from './PersonalizationDrawer';
 export default function Navbar() {
   const pathname = usePathname();
   const { location, loading, enableGps, clearLocation } = useLocationContext();
+  const { themeMode, setThemeMode } = useUserPreferences();
+
   const [auditOpen, setAuditOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
 
@@ -69,8 +72,21 @@ export default function Navbar() {
           <GlobalLocationSearch />
         </div>
 
-        {/* RIGHT SECTION (Col 9-12): Personalize Trigger, Audit Trigger & Segmented Navigation Tabs */}
+        {/* RIGHT SECTION (Col 9-12): Light/Dark Quick Toggle, Personalize Trigger, Audit Trigger & Segmented Nav */}
         <div className="col-span-4 flex justify-end items-center gap-2">
+          {/* Quick Light / Dark Theme Toggle Button */}
+          <button
+            onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
+            title={`Switch to ${themeMode === 'light' ? 'Dark' : 'Light'} Mode`}
+            className="p-2 rounded-xl glass-panel text-white/80 hover:text-white transition-all shadow-md flex items-center justify-center cursor-pointer"
+          >
+            {themeMode === 'light' ? (
+              <Moon className="w-4 h-4 text-slate-800" />
+            ) : (
+              <Sun className="w-4 h-4 text-amber-400" />
+            )}
+          </button>
+
           <button
             onClick={() => setPrefsOpen(true)}
             title="Operational Personalization"

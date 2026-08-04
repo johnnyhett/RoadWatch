@@ -36,8 +36,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans antialiased h-screen overflow-hidden flex flex-col bg-[#070a0f] text-slate-100`}>
+    <html lang="en">
+      <body className={`${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans antialiased h-screen overflow-hidden flex flex-col transition-colors duration-300`}>
         <UserPreferencesProvider>
           <LocationProvider>
             <Navbar />

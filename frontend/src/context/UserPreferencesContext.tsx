@@ -12,7 +12,7 @@ interface UserPreferences {
   mapStyle: MapStyle;
   themeColor: ThemeColor;
   themeMode: ThemeMode;
-  riskThreshold: number; // 0-100 score threshold for alerts
+  riskThreshold: number;
   soundAlertsEnabled: boolean;
   autoFlyToLocation: boolean;
   compactHudMode: boolean;
@@ -38,6 +38,20 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
   const [autoFlyToLocation, setAutoFlyToLocationState] = useState<boolean>(true);
   const [compactHudMode, setCompactHudModeState] = useState<boolean>(false);
 
+  // Synchronize document.documentElement class for Light/Dark mode
+  const applyThemeMode = (mode: ThemeMode) => {
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      if (mode === 'light') {
+        root.classList.remove('dark');
+        root.classList.add('light');
+      } else {
+        root.classList.remove('light');
+        root.classList.add('dark');
+      }
+    }
+  };
+
   // Load stored preferences from localStorage on mount
   useEffect(() => {
     try {
@@ -47,14 +61,21 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
         if (parsed.role) setRoleState(parsed.role);
         if (parsed.mapStyle) setMapStyleState(parsed.mapStyle);
         if (parsed.themeColor) setThemeColorState(parsed.themeColor);
-        if (parsed.themeMode) setThemeModeState(parsed.themeMode);
+        if (parsed.themeMode) {
+          setThemeModeState(parsed.themeMode);
+          applyThemeMode(parsed.themeMode);
+        } else {
+          applyThemeMode('dark');
+        }
         if (parsed.riskThreshold !== undefined) setRiskThresholdState(parsed.riskThreshold);
         if (parsed.soundAlertsEnabled !== undefined) setSoundAlertsEnabledState(parsed.soundAlertsEnabled);
         if (parsed.autoFlyToLocation !== undefined) setAutoFlyToLocationState(parsed.autoFlyToLocation);
         if (parsed.compactHudMode !== undefined) setCompactHudModeState(parsed.compactHudMode);
+      } else {
+        applyThemeMode('dark');
       }
     } catch (e) {
-      console.error('Failed to parse user preferences:', e);
+      applyThemeMode('dark');
     }
   }, []);
 
@@ -92,7 +113,7 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
 
   const setThemeMode = (m: ThemeMode) => {
     setThemeModeState(m);
-    // Auto update map style to light if light mode selected
+    applyThemeMode(m);
     const newMapStyle = m === 'light' ? 'carto_light' : 'carto_dark';
     setMapStyleState(newMapStyle);
     savePrefs({ themeMode: m, mapStyle: newMapStyle });
