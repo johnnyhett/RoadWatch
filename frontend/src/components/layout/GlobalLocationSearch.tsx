@@ -20,14 +20,45 @@ interface SearchResult {
   };
 }
 
-const PRESET_CITIES: { name: string; country: string; lat: number; lng: number }[] = [
-  { name: 'Kumasi', country: 'Ghana', lat: 6.6885, lng: -1.6244 },
-  { name: 'Accra', country: 'Ghana', lat: 5.5545, lng: -0.1902 },
-  { name: 'Lagos', country: 'Nigeria', lat: 6.5244, lng: 3.3792 },
-  { name: 'London', country: 'UK', lat: 51.5074, lng: -0.1278 },
-  { name: 'New York', country: 'USA', lat: 40.7128, lng: -74.0060 },
-  { name: 'Tokyo', country: 'Japan', lat: 35.6762, lng: 139.6503 },
-  { name: 'Berlin', country: 'Germany', lat: 52.5200, lng: 13.4050 },
+// Multi-Continent Global City Presets
+const CONTINENT_CITIES: { region: string; cities: { name: string; country: string; lat: number; lng: number }[] }[] = [
+  {
+    region: '🌍 Africa',
+    cities: [
+      { name: 'Kumasi', country: 'Ghana', lat: 6.6885, lng: -1.6244 },
+      { name: 'Accra', country: 'Ghana', lat: 5.5545, lng: -0.1902 },
+      { name: 'Lagos', country: 'Nigeria', lat: 6.5244, lng: 3.3792 },
+      { name: 'Nairobi', country: 'Kenya', lat: -1.2921, lng: 36.8219 },
+      { name: 'Cairo', country: 'Egypt', lat: 30.0444, lng: 31.2357 },
+      { name: 'Johannesburg', country: 'South Africa', lat: -26.2041, lng: 28.0473 },
+    ],
+  },
+  {
+    region: '🇪🇺 Europe',
+    cities: [
+      { name: 'London', country: 'UK', lat: 51.5074, lng: -0.1278 },
+      { name: 'Paris', country: 'France', lat: 48.8566, lng: 2.3522 },
+      { name: 'Berlin', country: 'Germany', lat: 52.5200, lng: 13.4050 },
+      { name: 'Amsterdam', country: 'Netherlands', lat: 52.3676, lng: 4.9041 },
+    ],
+  },
+  {
+    region: '🌎 Americas',
+    cities: [
+      { name: 'New York', country: 'USA', lat: 40.7128, lng: -74.0060 },
+      { name: 'Toronto', country: 'Canada', lat: 43.6532, lng: -79.3832 },
+      { name: 'São Paulo', country: 'Brazil', lat: -23.5505, lng: -46.6333 },
+    ],
+  },
+  {
+    region: '🌏 Asia & Pacific',
+    cities: [
+      { name: 'Tokyo', country: 'Japan', lat: 35.6762, lng: 139.6503 },
+      { name: 'Mumbai', country: 'India', lat: 19.0760, lng: 72.8777 },
+      { name: 'Singapore', country: 'Singapore', lat: 1.3521, lng: 103.8198 },
+      { name: 'Sydney', country: 'Australia', lat: -33.8688, lng: 151.2093 },
+    ],
+  },
 ];
 
 export default function GlobalLocationSearch() {
@@ -38,7 +69,7 @@ export default function GlobalLocationSearch() {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Debounced geocoding search
+  // Debounced geocoding search across ALL countries globally
   useEffect(() => {
     if (!query.trim() || query.length < 2) {
       setResults([]);
@@ -89,19 +120,19 @@ export default function GlobalLocationSearch() {
     selectLocation({ latitude: lat, longitude: lng, city, country });
   };
 
-  const handleSelectPreset = (preset: typeof PRESET_CITIES[0]) => {
-    setQuery(`${preset.name}, ${preset.country}`);
+  const handleSelectPreset = (c: { name: string; country: string; lat: number; lng: number }) => {
+    setQuery(`${c.name}, ${c.country}`);
     setIsOpen(false);
     selectLocation({
-      latitude: preset.lat,
-      longitude: preset.lng,
-      city: preset.name,
-      country: preset.country,
+      latitude: c.lat,
+      longitude: c.lng,
+      city: c.name,
+      country: c.country,
     });
   };
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-md">
+    <div ref={containerRef} className="relative w-full max-w-lg">
       <div className="relative flex items-center">
         <Search className="w-4 h-4 text-cyan-400 absolute left-3 pointer-events-none" />
         <input
@@ -109,8 +140,8 @@ export default function GlobalLocationSearch() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
-          placeholder="Search any City or Country globally..."
-          className="w-full bg-black/60 border border-white/15 focus:border-cyan-400 text-white font-mono text-xs rounded-lg pl-8 pr-20 py-1.5 focus:outline-none transition-all placeholder:text-white/40 shadow-inner"
+          placeholder="Search ANY City or Country globally (Africa, Europe, Asia, Americas)..."
+          className="w-full bg-black/60 border border-white/15 focus:border-cyan-400 text-white font-mono text-xs rounded-xl pl-8 pr-20 py-1.5 focus:outline-none transition-all placeholder:text-white/40 shadow-inner"
         />
 
         <div className="absolute right-1.5 flex items-center gap-1">
@@ -119,7 +150,7 @@ export default function GlobalLocationSearch() {
             onClick={() => enableGps()}
             disabled={gpsLoading}
             title="Auto-Detect Location (GPS / IP)"
-            className="px-2 py-0.5 bg-white/5 text-cyan-300 border border-white/10 rounded text-[10px] font-mono hover:bg-white/10 transition-all flex items-center gap-1"
+            className="px-2 py-0.5 bg-white/5 text-cyan-300 border border-white/10 rounded-md text-[10px] font-mono hover:bg-white/10 transition-all flex items-center gap-1"
           >
             <Compass className={`w-3 h-3 text-cyan-400 ${gpsLoading ? 'animate-spin' : ''}`} />
             <span>GPS</span>
@@ -127,31 +158,38 @@ export default function GlobalLocationSearch() {
         </div>
       </div>
 
-      {/* Dropdown with Preset Quick Chips + Search Results */}
+      {/* Multi-Continent Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 rounded-lg overflow-hidden z-50 shadow-2xl divide-y divide-white/5 max-h-72 overflow-y-auto">
-          {/* Quick Popular Cities */}
-          <div className="p-2 bg-white/5">
-            <span className="text-[10px] font-mono text-white/50 block mb-1.5 uppercase font-semibold">
-              Popular Locations
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {PRESET_CITIES.map((c) => (
-                <button
-                  key={c.name}
-                  onClick={() => handleSelectPreset(c)}
-                  className="px-2 py-1 bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-500/40 text-white/80 rounded text-[11px] font-mono border border-white/10 transition-all flex items-center gap-1"
-                >
-                  <Globe className="w-3 h-3 text-cyan-400" />
-                  <span>{c.name}</span>
-                </button>
-              ))}
-            </div>
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#0d1117]/95 backdrop-blur-xl border border-white/15 rounded-xl overflow-hidden z-50 shadow-2xl divide-y divide-white/5 max-h-80 overflow-y-auto">
+          {/* Multi-Continent Quick Chips */}
+          <div className="p-2.5 space-y-2 bg-white/[0.02]">
+            {CONTINENT_CITIES.map((reg) => (
+              <div key={reg.region} className="space-y-1">
+                <span className="text-[10px] font-mono text-white/50 block font-semibold uppercase">
+                  {reg.region}
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {reg.cities.map((c) => (
+                    <button
+                      key={c.name}
+                      onClick={() => handleSelectPreset(c)}
+                      className="px-2 py-0.5 bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-500/40 text-white/80 rounded text-[10px] font-mono border border-white/10 transition-all flex items-center gap-1"
+                    >
+                      <Globe className="w-2.5 h-2.5 text-cyan-400" />
+                      <span>{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Autocomplete Search Results */}
           {results.length > 0 && (
             <div className="divide-y divide-white/5">
+              <span className="text-[10px] font-mono text-white/40 block px-3 py-1.5 bg-white/5 uppercase">
+                Global Search Results
+              </span>
               {results.map((item) => {
                 const addr = item.address || {};
                 const city = addr.city || addr.town || addr.village || addr.county || item.display_name.split(',')[0];
