@@ -25,7 +25,7 @@ export default function BlackspotList({
   }
 
   return (
-    <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto pr-1">
+    <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto custom-scrollbar pr-1.5">
       {blackspots.map((spot, index) => {
         const isSelected = selectedBlackspotId === spot.cluster_id;
         const topFactor = Object.keys(spot.primary_factors || {})[0] || 'High Density';
@@ -58,10 +58,10 @@ export default function BlackspotList({
 
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors">
+                  <h4 className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors font-heading">
                     Hotspot #{spot.cluster_id + 1}
                   </h4>
-                  <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-500/10 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
                     {spot.incident_count} crashes
                   </span>
                 </div>
@@ -74,7 +74,7 @@ export default function BlackspotList({
 
             <div className="flex items-center gap-2">
               <div className="text-right">
-                <span className="text-[9px] uppercase tracking-wider text-white/40 block">Risk Score</span>
+                <span className="text-[9px] uppercase tracking-wider text-white/40 block font-mono">Risk Score</span>
                 <span className="text-sm font-bold font-mono text-red-400">{spot.risk_score}</span>
               </div>
               <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
