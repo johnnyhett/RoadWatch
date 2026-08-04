@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { MAP_CONFIG } from '@/lib/constants';
 import { Incident, Blackspot, RouteDetails, UserLocation } from '@/types';
 
@@ -13,17 +14,23 @@ function MapController({ center, zoom }: { center?: [number, number]; zoom?: num
   useEffect(() => {
     if (!map) return;
 
-    // Multi-phase invalidateSize to guarantee tile coverage after Next.js layout mount
-    const timer1 = setTimeout(() => map.invalidateSize(), 50);
-    const timer2 = setTimeout(() => map.invalidateSize(), 300);
-    const timer3 = setTimeout(() => map.invalidateSize(), 800);
+    // Force recalculate Leaflet container bounds across Next.js layout render cycles
+    const invalidate = () => {
+      try {
+        map.invalidateSize({ animate: false, pan: false });
+      } catch (e) {}
+    };
 
-    // ResizeObserver for dynamic window/sidebar resizing
+    invalidate();
+    const timer1 = setTimeout(invalidate, 100);
+    const timer2 = setTimeout(invalidate, 400);
+    const timer3 = setTimeout(invalidate, 1000);
+
     const container = map.getContainer();
     let resizeObserver: ResizeObserver | null = null;
     if (container && typeof ResizeObserver !== 'undefined') {
       resizeObserver = new ResizeObserver(() => {
-        map.invalidateSize();
+        invalidate();
       });
       resizeObserver.observe(container);
     }
