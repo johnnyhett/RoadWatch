@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import { MAP_CONFIG } from '@/lib/constants';
 import { Incident, Blackspot, RouteDetails, UserLocation } from '@/types';
 import { useUserPreferences } from '@/context/UserPreferencesContext';
+import { humanizeFactor, formatMetric, formatScore } from '@/lib/format';
 
 // Failproof Map Controller — Monitors DOM container resizes to guarantee 100% viewport tile coverage
 function MapController({ center, zoom }: { center?: [number, number]; zoom?: number }) {
@@ -19,7 +20,7 @@ function MapController({ center, zoom }: { center?: [number, number]; zoom?: num
     const invalidate = () => {
       try {
         map.invalidateSize({ animate: false, pan: false });
-      } catch (e) {}
+      } catch {}
     };
 
     invalidate();
@@ -141,15 +142,27 @@ export default function AppMap({
 }: MapProps) {
   const { themeMode, mapStyle } = useUserPreferences();
 
-  // Dynamic Tile URL based on Light Mode / Dark Mode preference
-  const currentTileUrl = useMemo(() => {
-    if (themeMode === 'light' || mapStyle === 'carto_light') {
-      return 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+  // Dynamic Tile URL based on the selected base map / theme.
+  const { url: currentTileUrl, attribution: currentAttribution } = useMemo(() => {
+    if (mapStyle === 'satellite') {
+      return {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics',
+      };
     }
     if (mapStyle === 'osm_standard') {
-      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      return {
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      };
     }
-    return MAP_CONFIG.tileLayer; // CartoDB Dark
+    if (themeMode === 'light' || mapStyle === 'carto_light') {
+      return {
+        url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        attribution: MAP_CONFIG.attribution,
+      };
+    }
+    return { url: MAP_CONFIG.tileLayer, attribution: MAP_CONFIG.attribution }; // CartoDB Dark
   }, [themeMode, mapStyle]);
 
   const activeCenter: [number, number] = useMemo(() => {
@@ -183,7 +196,7 @@ export default function AppMap({
       <TileLayer
         key={currentTileUrl}
         url={currentTileUrl}
-        attribution={MAP_CONFIG.attribution}
+        attribution={currentAttribution}
         maxZoom={19}
       />
 
@@ -262,18 +275,18 @@ export default function AppMap({
                         Hotspot #{b.cluster_id + 1}
                       </span>
                       <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-semibold text-[11px]">
-                        Risk Score {b.risk_score}
+                        Risk Score {formatScore(b.risk_score)}
                       </span>
                     </div>
                     <div className="space-y-1 text-white/80">
                       <p><strong>Incidents:</strong> {b.incident_count} crashes</p>
-                      <p><strong>Avg Severity:</strong> {b.avg_severity} / 4.0</p>
+                      <p><strong>Avg Severity:</strong> {formatMetric(b.avg_severity)} / 4.0</p>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {Object.entries(b.primary_factors || {})
                           .slice(0, 3)
                           .map(([factor, cnt]) => (
                             <span key={factor} className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-cyan-300 font-mono">
-                              {factor}: {cnt}
+                              {humanizeFactor(factor)}: {cnt}
                             </span>
                           ))}
                       </div>

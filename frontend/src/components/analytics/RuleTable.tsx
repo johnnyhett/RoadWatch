@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AssociationRule } from '@/types';
 import { getAssociationRules } from '@/lib/api';
-import { Filter, ArrowRight, Zap } from 'lucide-react';
+import { Filter, ArrowRight } from 'lucide-react';
 
 interface RuleTableProps {
   onRulesLoaded?: (rules: AssociationRule[]) => void;

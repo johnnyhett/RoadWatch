@@ -6,7 +6,7 @@ import RouteForm from '@/components/routing/RouteForm';
 import RouteComparison from '@/components/routing/RouteComparison';
 import { RouteParams, RouteComparison as RouteCompType } from '@/types';
 import { getSafestRoute } from '@/lib/api';
-import { Navigation, Shield, Layers } from 'lucide-react';
+import { Navigation, Layers } from 'lucide-react';
 
 const Map = dynamic(() => import('@/components/map/MapContainer'), { 
   ssr: false,

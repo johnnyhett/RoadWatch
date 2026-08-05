@@ -1,7 +1,7 @@
 'use client';
 
-import { useUserPreferences, UserRole, MapStyle, ThemeColor, ThemeMode } from '@/context/UserPreferencesContext';
-import { Settings, Shield, Sliders, Volume2, Eye, Map, X, Check, Sun, Moon } from 'lucide-react';
+import { useUserPreferences, UserRole, ThemeColor, MapStyle } from '@/context/UserPreferencesContext';
+import { Settings, Shield, Sliders, Volume2, Eye, Map, Layers, X, Check, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const ROLES: { id: UserRole; title: string; desc: string; icon: string }[] = [
@@ -16,6 +16,13 @@ const THEME_COLORS: { id: ThemeColor; label: string; bg: string }[] = [
   { id: 'emerald_matrix', label: 'Emerald Matrix', bg: 'from-emerald-500 to-teal-600' },
   { id: 'neon_amber', label: 'Neon Amber', bg: 'from-amber-500 to-orange-600' },
   { id: 'oled_black', label: 'OLED Black', bg: 'from-slate-900 to-black' },
+];
+
+const MAP_STYLES: { id: MapStyle; label: string }[] = [
+  { id: 'carto_dark', label: 'Carto Dark' },
+  { id: 'carto_light', label: 'Carto Light' },
+  { id: 'osm_standard', label: 'OSM Standard' },
+  { id: 'satellite', label: 'Satellite' },
 ];
 
 interface PersonalizationDrawerProps {
@@ -205,6 +212,45 @@ export default function PersonalizationDrawer({ isOpen, onClose }: Personalizati
                 onChange={(e) => setAutoFlyToLocation(e.target.checked)}
                 className="w-4 h-4 accent-cyan-400 cursor-pointer"
               />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-cyan-400" />
+                <div>
+                  <span className="text-white font-medium block">Compact HUD Mode</span>
+                  <span className="text-[10px] text-white/50 font-mono font-normal">Condense overlay panels to maximise map area</span>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={compactHudMode}
+                onChange={(e) => setCompactHudMode(e.target.checked)}
+                className="w-4 h-4 accent-cyan-400 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Section 5: Base Map Style */}
+          <div className="space-y-2 pt-2 border-t border-white/10">
+            <span className="text-[10px] uppercase tracking-wider text-white/50 font-mono flex items-center gap-1.5">
+              <Map className="w-3.5 h-3.5 text-cyan-400" /> Base Map Style
+            </span>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              {MAP_STYLES.map((style) => (
+                <button
+                  key={style.id}
+                  onClick={() => setMapStyle(style.id)}
+                  aria-pressed={mapStyle === style.id}
+                  className={`py-2 px-2 rounded-lg font-mono border transition-all text-left ${
+                    mapStyle === style.id
+                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold'
+                      : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                  }`}
+                >
+                  {style.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>

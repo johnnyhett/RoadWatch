@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { humanizeFactor, formatMetric, formatScore } from '@/lib/format';
 import { Blackspot } from '@/types';
-import { X, ShieldCheck, Activity, MapPin, Zap, Download, Wrench, DollarSign, Layers } from 'lucide-react';
+import { X, Activity, MapPin, Zap, Download, Wrench } from 'lucide-react';
 
 interface BlackspotDrawerProps {
   blackspot: Blackspot | null;
@@ -24,7 +25,6 @@ export default function BlackspotDrawer({ blackspot, onClose }: BlackspotDrawerP
   if (!blackspot) return null;
 
   const primaryFactors = Object.entries(blackspot.primary_factors || {}).sort((a, b) => b[1] - a[1]);
-  const topFactor = primaryFactors[0]?.[0] || 'Speeding';
 
   // Comprehensive Actionable Civil & Traffic Engineering Countermeasures
   const allCountermeasures: Countermeasure[] = [
@@ -81,13 +81,13 @@ export default function BlackspotDrawer({ blackspot, onClose }: BlackspotDrawerP
 ROADSAFETY BLACKSPOT ENGINEERING INTERVENTION BRIEF
 ==================================================
 Hotspot ID: #${blackspot.cluster_id + 1}
-Risk Score: ${blackspot.risk_score} / 100
+Risk Score: ${formatScore(blackspot.risk_score)} / 100
 Coordinates: ${blackspot.center[0]}, ${blackspot.center[1]}
 Total Incidents: ${blackspot.incident_count}
-Average Severity: ${blackspot.avg_severity} / 4.0
+Average Severity: ${formatMetric(blackspot.avg_severity)} / 4.0
 
 PRIMARY RISK FACTORS:
-${primaryFactors.map(([f, c]) => `- ${f}: ${c} occurrences`).join('\n')}
+${primaryFactors.map(([f, c]) => `- ${humanizeFactor(f)}: ${c} occurrences`).join('\n')}
 
 ACTIONABLE COUNTERMEASURES:
 ${allCountermeasures.map((c) => `[${c.category.toUpperCase()}] ${c.title} (CRF: ${c.crf}%, Cost: ${c.cost})\n  ${c.description}`).join('\n\n')}
@@ -117,7 +117,7 @@ ${allCountermeasures.map((c) => `[${c.category.toUpperCase()}] ${c.title} (CRF: 
               Hotspot #{blackspot.cluster_id + 1}
             </h2>
             <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/30">
-              RISK {blackspot.risk_score}
+              RISK {formatScore(blackspot.risk_score)}
             </span>
           </div>
           <p className="text-xs text-white/50 flex items-center gap-1 mt-1 font-mono">
@@ -148,7 +148,7 @@ ${allCountermeasures.map((c) => `[${c.category.toUpperCase()}] ${c.title} (CRF: 
             <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
               <span className="text-[10px] text-white/50 block mb-0.5 font-mono">Avg Severity</span>
               <span className="text-2xl font-bold font-mono text-amber-400">
-                {blackspot.avg_severity} / 4.0
+                {formatMetric(blackspot.avg_severity)} / 4.0
               </span>
             </div>
           </div>
@@ -166,7 +166,7 @@ ${allCountermeasures.map((c) => `[${c.category.toUpperCase()}] ${c.title} (CRF: 
               return (
                 <div key={factor} className="p-2 bg-white/5 rounded-xl border border-white/5">
                   <div className="flex justify-between items-center text-xs mb-1">
-                    <span className="text-white/80 font-medium">{factor}</span>
+                    <span className="text-white/80 font-medium">{humanizeFactor(factor)}</span>
                     <span className="font-mono text-cyan-400 font-bold">{count} ({pct}%)</span>
                   </div>
                   <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">

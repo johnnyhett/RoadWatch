@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { SafetyAuditReport, SafetyAuditRequest } from '@/types';
+import { SafetyAuditReport } from '@/types';
 import { getSafetyAuditReport } from '@/lib/api';
-import { X, ShieldCheck, Download, AlertTriangle, Building2, Calendar, FileText, CheckCircle2, RefreshCw } from 'lucide-react';
+import { X, ShieldCheck, Download, AlertTriangle, Building2, FileText, RefreshCw } from 'lucide-react';
 
 interface SafetyAuditDrawerProps {
   isOpen: boolean;

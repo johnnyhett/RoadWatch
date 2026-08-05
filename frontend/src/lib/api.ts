@@ -1,6 +1,14 @@
 import { Incident, Blackspot, AssociationRule, TemporalPatterns, IncidentStats, RiskPrediction, RouteDetails, RouteComparison, SafetyAuditRequest, SafetyAuditReport } from '@/types';
 import { API_BASE_URL } from './constants';
 
+export interface SafetyRouteParams {
+  origin?: [number, number];
+  destination?: [number, number];
+  alpha?: number;
+  beta?: number;
+  mode?: string;
+}
+
 let currentCenterLat = 6.6885; // Kumasi default
 let currentCenterLng = -1.6244;
 
@@ -307,7 +315,7 @@ export async function getIncidentStats(): Promise<IncidentStats> {
   };
 }
 
-export async function predictRisk(features: Record<string, any>): Promise<RiskPrediction> {
+export async function predictRisk(features: Record<string, string | number | undefined>): Promise<RiskPrediction> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/v1/predictions/risk`, {
       method: 'POST',
@@ -338,7 +346,7 @@ export async function predictRisk(features: Record<string, any>): Promise<RiskPr
   };
 }
 
-export async function computeSafetyRoute(params: any): Promise<RouteComparison> {
+export async function computeSafetyRoute(params: SafetyRouteParams): Promise<RouteComparison> {
   const origin: [number, number] = params.origin || [6.6885, -1.6244];
   const dest: [number, number] = params.destination || [6.7050, -1.6050];
 

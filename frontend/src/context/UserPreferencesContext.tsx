@@ -28,6 +28,21 @@ interface UserPreferences {
 
 const UserPreferencesContext = createContext<UserPreferences | undefined>(undefined);
 
+/** Shape persisted to localStorage; every field is optional. */
+type StoredPrefs = Partial<Pick<UserPreferences,
+  'role' | 'mapStyle' | 'themeColor' | 'themeMode' | 'riskThreshold'
+  | 'soundAlertsEnabled' | 'autoFlyToLocation' | 'compactHudMode'>>;
+
+/** Reads persisted preferences, or null when absent or unreadable. */
+async function readStoredPrefs(): Promise<StoredPrefs | null> {
+  try {
+    const saved = localStorage.getItem('roadwatch_user_prefs');
+    return saved ? (JSON.parse(saved) as StoredPrefs) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function UserPreferencesProvider({ children }: { children: React.ReactNode }) {
   const [role, setRoleState] = useState<UserRole>('ENGINEER');
   const [mapStyle, setMapStyleState] = useState<MapStyle>('carto_dark');
@@ -52,31 +67,38 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
     }
   };
 
-  // Load stored preferences from localStorage on mount
+  // Restore stored preferences on mount.
+  //
+  // localStorage does not exist during server rendering, so this cannot be a
+  // lazy useState initializer without a hydration mismatch. Reading it through
+  // an async step keeps the state updates off the synchronous render path.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('roadwatch_user_prefs');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.role) setRoleState(parsed.role);
-        if (parsed.mapStyle) setMapStyleState(parsed.mapStyle);
-        if (parsed.themeColor) setThemeColorState(parsed.themeColor);
-        if (parsed.themeMode) {
-          setThemeModeState(parsed.themeMode);
-          applyThemeMode(parsed.themeMode);
-        } else {
-          applyThemeMode('dark');
-        }
-        if (parsed.riskThreshold !== undefined) setRiskThresholdState(parsed.riskThreshold);
-        if (parsed.soundAlertsEnabled !== undefined) setSoundAlertsEnabledState(parsed.soundAlertsEnabled);
-        if (parsed.autoFlyToLocation !== undefined) setAutoFlyToLocationState(parsed.autoFlyToLocation);
-        if (parsed.compactHudMode !== undefined) setCompactHudModeState(parsed.compactHudMode);
+    let cancelled = false;
+
+    readStoredPrefs().then((parsed) => {
+      if (cancelled) return;
+      if (!parsed) {
+        applyThemeMode('dark');
+        return;
+      }
+      if (parsed.role) setRoleState(parsed.role);
+      if (parsed.mapStyle) setMapStyleState(parsed.mapStyle);
+      if (parsed.themeColor) setThemeColorState(parsed.themeColor);
+      if (parsed.themeMode) {
+        setThemeModeState(parsed.themeMode);
+        applyThemeMode(parsed.themeMode);
       } else {
         applyThemeMode('dark');
       }
-    } catch (e) {
-      applyThemeMode('dark');
-    }
+      if (parsed.riskThreshold !== undefined) setRiskThresholdState(parsed.riskThreshold);
+      if (parsed.soundAlertsEnabled !== undefined) setSoundAlertsEnabledState(parsed.soundAlertsEnabled);
+      if (parsed.autoFlyToLocation !== undefined) setAutoFlyToLocationState(parsed.autoFlyToLocation);
+      if (parsed.compactHudMode !== undefined) setCompactHudModeState(parsed.compactHudMode);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const savePrefs = (updates: Partial<UserPreferences>) => {
@@ -93,7 +115,7 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
         ...updates,
       };
       localStorage.setItem('roadwatch_user_prefs', JSON.stringify(current));
-    } catch (e) {}
+    } catch {}
   };
 
   const setRole = (r: UserRole) => {

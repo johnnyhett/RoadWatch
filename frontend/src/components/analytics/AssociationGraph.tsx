@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AssociationRule } from '@/types';
 import { getAssociationRules } from '@/lib/api';
-import { ZoomIn, ZoomOut, RefreshCw, Search, Info } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 interface AssociationGraphProps {
   rules?: AssociationRule[];
@@ -31,7 +31,7 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const [rules, setRules] = useState<AssociationRule[]>(propRules || []);
+  const [fetchedRules, setFetchedRules] = useState<AssociationRule[]>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -44,14 +44,22 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
   const linksRef = useRef<Link[]>([]);
   const animationRef = useRef<number | null>(null);
 
-  // Fetch rules if not passed as prop
+  // Rules supplied by the parent win; otherwise fall back to the fetched set.
+  // Copying propRules into state would mirror a prop and leave the two able to
+  // drift apart, so the choice is made during render instead.
+  const hasPropRules = Boolean(propRules && propRules.length > 0);
+  const rules = hasPropRules ? propRules! : fetchedRules;
+
   useEffect(() => {
-    if (propRules && propRules.length > 0) {
-      setRules(propRules);
-    } else {
-      getAssociationRules().then((r) => setRules(r));
-    }
-  }, [propRules]);
+    if (hasPropRules) return;
+    let cancelled = false;
+    getAssociationRules().then((r) => {
+      if (!cancelled) setFetchedRules(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasPropRules]);
 
   // Initialize nodes and links bounded nicely inside canvas
   useEffect(() => {

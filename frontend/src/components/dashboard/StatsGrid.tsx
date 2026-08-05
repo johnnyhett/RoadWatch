@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { AlertTriangle, Car, Users, Skull } from 'lucide-react';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { getIncidentStats } from '@/lib/api';
 import { IncidentStats } from '@/types';
 import { useLocationContext } from '@/context/LocationContext';
@@ -10,19 +10,25 @@ import { useLocationContext } from '@/context/LocationContext';
 const AnimatedNumber = ({ value, duration = 1200 }: { value: number; duration?: number }) => {
   const [display, setDisplay] = useState(0);
   const rafRef = useRef<number>(0);
+  // Tracks the rendered value so each run can start from where the last one
+  // stopped, without making the effect depend on `display` (which would
+  // restart the tween on every frame). Written only inside the rAF callback --
+  // never during render.
+  const displayRef = useRef(0);
 
   useEffect(() => {
     const startTime = performance.now();
-    const startValue = display;
-    
+    const startValue = displayRef.current;
+
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = Math.round(startValue + (value - startValue) * eased);
       
+      displayRef.current = current;
       setDisplay(current);
-      
+
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(animate);
       }
@@ -39,18 +45,17 @@ export default function StatsGrid() {
   const { location } = useLocationContext();
   const [stats, setStats] = useState<IncidentStats | null>(null);
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const data = await getIncidentStats();
-      setStats(data);
-    } catch {
-      console.warn('Failed to fetch stats');
-    }
-  }, []);
-
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats, location]);
+    let cancelled = false;
+    getIncidentStats()
+      .then((data) => {
+        if (!cancelled) setStats(data);
+      })
+      .catch(() => console.warn('Failed to fetch stats'));
+    return () => {
+      cancelled = true;
+    };
+  }, [location]);
 
   const cards = [
     {

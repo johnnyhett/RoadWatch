@@ -65,25 +65,27 @@ export default function Dashboard() {
   // Inspector State
   const [selectedBlackspot, setSelectedBlackspot] = useState<Blackspot | null>(null);
 
-  const loadDataForLocation = useCallback(async (lat: number, lng: number) => {
-    setLoading(true);
-    setGlobalLocationCenter(lat, lng);
-    try {
-      const [incData, spotData] = await Promise.all([getIncidents(), getBlackspots()]);
-      setIncidents(incData);
-      setBlackspots(spotData);
-    } catch (err) {
-      console.error('Data loading error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     const lat = location?.latitude || 6.6885;
     const lng = location?.longitude || -1.6244;
-    loadDataForLocation(lat, lng);
-  }, [location, loadDataForLocation]);
+    setGlobalLocationCenter(lat, lng);
+
+    let cancelled = false;
+    Promise.all([getIncidents(), getBlackspots()])
+      .then(([incData, spotData]) => {
+        if (cancelled) return;
+        setIncidents(incData);
+        setBlackspots(spotData);
+      })
+      .catch((err) => console.error('Data loading error:', err))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location]);
 
   const handleSelectBlackspot = useCallback((spot: Blackspot) => {
     setSelectedBlackspot(spot);
@@ -132,6 +134,25 @@ export default function Dashboard() {
         />
       </div>
       
+      {/* Data load indicator */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="glass-panel px-3 py-1.5 rounded-full flex items-center gap-2 shadow-xl">
+              <span className="w-3 h-3 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+              <span className="text-[11px] font-mono text-white/80">Loading incident horizon...</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Overlay Dashboard UI */}
       <div className="absolute inset-0 z-10 pointer-events-none p-3 flex flex-col justify-between">
         <div className="flex justify-between items-start">
@@ -151,7 +172,7 @@ export default function Dashboard() {
                   initial={{ opacity: 0, x: -20, width: 0 }}
                   animate={{ opacity: 1, x: 0, width: '320px' }}
                   exit={{ opacity: 0, x: -20, width: 0 }}
-                  className="flex flex-col gap-2.5 max-h-[calc(100vh-120px)] overflow-hidden"
+                  className="flex flex-col gap-2.5 max-h-[calc(100vh-120px)] overflow-hidden max-w-[calc(100vw-5rem)]"
                 >
                   {/* Pattern Discovery Layer Controls */}
                   <div className="glass-panel p-3 space-y-3 rounded-2xl shadow-2xl">
@@ -329,14 +350,14 @@ export default function Dashboard() {
           </div>
 
           {/* Right Floating Glass Panel: Analytics & Embedded ML Risk Classifier */}
-          <div className="pointer-events-auto flex gap-2 items-start">
+          <div className="pointer-events-auto hidden md:flex gap-2 items-start">
             <AnimatePresence>
               {rightPanelOpen && (
                 <motion.div
                   initial={{ opacity: 0, x: 20, width: 0 }}
                   animate={{ opacity: 1, x: 0, width: '380px' }}
                   exit={{ opacity: 0, x: 20, width: 0 }}
-                  className="flex flex-col gap-2.5 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar"
+                  className="flex flex-col gap-2.5 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar max-w-[calc(100vw-5rem)]"
                 >
                   {/* Segmented Tab Header */}
                   <div className="glass-panel p-1 rounded-xl flex items-center gap-1 font-mono text-xs">

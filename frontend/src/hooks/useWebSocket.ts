@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import type { Client as StompClient, IMessage } from '@stomp/stompjs';
 import { WS_BASE_URL } from '@/lib/constants';
+import { Incident } from '@/types';
 
 export interface LiveEvent {
   eventId: string;
   type: string;
-  incident?: any;
+  /** Partial: the broadcast carries a simulated incident, not a stored one. */
+  incident?: Partial<Incident>;
   predictedSeverity?: string;
   timestamp?: string;
 }
@@ -15,7 +18,7 @@ export function useWebSocket(topic: string = '/topic/incidents/live') {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    let stompClient: any = null;
+    let stompClient: StompClient | null = null;
 
     async function initStomp() {
       try {
@@ -29,7 +32,7 @@ export function useWebSocket(topic: string = '/topic/incidents/live') {
           heartbeatOutgoing: 4000,
           onConnect: () => {
             setIsConnected(true);
-            stompClient.subscribe(topic, (message: any) => {
+            stompClient?.subscribe(topic, (message: IMessage) => {
               if (message.body) {
                 try {
                   const event: LiveEvent = JSON.parse(message.body);
@@ -46,7 +49,7 @@ export function useWebSocket(topic: string = '/topic/incidents/live') {
         });
 
         stompClient.activate();
-      } catch (err) {
+      } catch {
         setIsConnected(false);
       }
     }

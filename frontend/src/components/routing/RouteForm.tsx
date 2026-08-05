@@ -44,35 +44,36 @@ export default function RouteForm({ onComputeRoute, loading = false }: RouteForm
   const originRef = useRef<HTMLDivElement>(null);
   const destRef = useRef<HTMLDivElement>(null);
 
-  // Set default initial origin/destination based on current location
-  useEffect(() => {
+  // Re-seed origin/destination when the resolved location changes. Adjusting
+  // state during render is React's documented pattern for reacting to a changed
+  // input, and avoids the extra render pass an effect would cause.
+  const locationKey = location ? `${location.latitude},${location.longitude}` : 'default';
+  const [seenLocationKey, setSeenLocationKey] = useState<string | null>(null);
+  if (locationKey !== seenLocationKey) {
+    setSeenLocationKey(locationKey);
     if (location) {
-      const lat = location.latitude;
-      const lng = location.longitude;
-      setOriginCoords([lat, lng]);
+      setOriginCoords([location.latitude, location.longitude]);
       setOriginQuery(`${location.city}, ${location.country}`);
-      
       // Default destination slightly offset (e.g. 2km north-east)
-      const destLat = lat + 0.018;
-      const destLng = lng + 0.022;
-      setDestCoords([destLat, destLng]);
+      setDestCoords([location.latitude + 0.018, location.longitude + 0.022]);
       setDestQuery(`North ${location.city} Route`);
     } else {
-      // Default to Kumasi center if location loading
+      // Default to Kumasi center while the location is still resolving
       setOriginCoords([6.6885, -1.6244]);
       setOriginQuery('Kumasi Central, Ghana');
       setDestCoords([6.7050, -1.6050]);
       setDestQuery('KNUST Main Campus, Kumasi');
     }
-  }, [location]);
+  }
 
   // Origin Geocoding search
   useEffect(() => {
-    if (!originQuery.trim() || useGpsOrigin || originQuery.length < 3) {
-      setOriginResults([]);
-      return;
-    }
+    const tooShort = !originQuery.trim() || useGpsOrigin || originQuery.length < 3;
     const timer = setTimeout(async () => {
+      if (tooShort) {
+        setOriginResults([]);
+        return;
+      }
       setOriginSearching(true);
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(originQuery)}&limit=4`);
@@ -81,19 +82,20 @@ export default function RouteForm({ onComputeRoute, loading = false }: RouteForm
           setOriginResults(data);
           setShowOriginDrop(true);
         }
-      } catch (e) {}
+      } catch {}
       setOriginSearching(false);
-    }, 350);
+    }, tooShort ? 0 : 350);
     return () => clearTimeout(timer);
   }, [originQuery, useGpsOrigin]);
 
   // Destination Geocoding search
   useEffect(() => {
-    if (!destQuery.trim() || destQuery.length < 3) {
-      setDestResults([]);
-      return;
-    }
+    const tooShort = !destQuery.trim() || destQuery.length < 3;
     const timer = setTimeout(async () => {
+      if (tooShort) {
+        setDestResults([]);
+        return;
+      }
       setDestSearching(true);
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(destQuery)}&limit=4`);
@@ -102,9 +104,9 @@ export default function RouteForm({ onComputeRoute, loading = false }: RouteForm
           setDestResults(data);
           setShowDestDrop(true);
         }
-      } catch (e) {}
+      } catch {}
       setDestSearching(false);
-    }, 350);
+    }, tooShort ? 0 : 350);
     return () => clearTimeout(timer);
   }, [destQuery]);
 
@@ -154,16 +156,16 @@ export default function RouteForm({ onComputeRoute, loading = false }: RouteForm
           Multi-Modal Transport Mode
         </label>
         <div className="grid grid-cols-4 gap-1 text-xs">
-          {[
+          {([
             { id: 'car', label: '🚗 Car' },
             { id: 'motorcycle', label: '🏍️ Moto' },
             { id: 'bicycle', label: '🚲 Bike' },
             { id: 'pedestrian', label: '🚶 Walk' },
-          ].map((m) => (
+          ] as const).map((m) => (
             <button
               key={m.id}
               type="button"
-              onClick={() => setMode(m.id as any)}
+              onClick={() => setMode(m.id)}
               className={`py-1.5 rounded-lg text-[11px] font-mono transition-all border ${
                 mode === m.id
                   ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold shadow-[0_0_8px_rgba(0,212,255,0.2)]'
