@@ -21,18 +21,27 @@ public class InMemoryIncidentRepository implements IncidentRepositoryPort {
 
     @Override
     public Incident findById(String id) {
-        return store.get(id);
+        // ConcurrentHashMap.get rejects a null key with an NPE.
+        return id == null ? null : store.get(id);
     }
 
     @Override
     public void save(Incident incident) {
+        if (incident == null || incident.id() == null) {
+            // ConcurrentHashMap forbids null keys, so a record with no
+            // accident_id would abort the whole load with an NPE.
+            return;
+        }
         store.put(incident.id(), incident);
     }
 
     @Override
     public void saveAll(List<Incident> incidents) {
+        if (incidents == null) {
+            return;
+        }
         for (Incident i : incidents) {
-            store.put(i.id(), i);
+            save(i);
         }
     }
 }
