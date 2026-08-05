@@ -14,7 +14,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleAllExceptions(Exception ex) {
         Map<String, String> response = new HashMap<>();
-        response.put("error", ex.getMessage());
+        // getMessage() is null for many exception types (e.g. NullPointerException),
+        // which would serialize an error body with no usable detail.
+        String message = ex.getMessage();
+        response.put("error", (message == null || message.isBlank()) ? ex.getClass().getSimpleName() : message);
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

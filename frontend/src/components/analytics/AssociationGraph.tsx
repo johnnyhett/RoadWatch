@@ -34,7 +34,11 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
   const [rules, setRules] = useState<AssociationRule[]>(propRules || []);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [draggedNode, setDraggedNode] = useState<Node | null>(null);
+
+  // The dragged node is mutated in place by the physics loop, so it is held in
+  // a ref rather than state: storing it in state and then writing to its x/y
+  // would mutate a rendered value, and dragging does not need a re-render.
+  const draggedNodeRef = useRef<Node | null>(null);
 
   const nodesRef = useRef<Node[]>([]);
   const linksRef = useRef<Link[]>([]);
@@ -166,9 +170,9 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
         for (let j = i + 1; j < nodes.length; j++) {
           const n1 = nodes[i];
           const n2 = nodes[j];
-          let dx = n2.x - n1.x;
-          let dy = n2.y - n1.y;
-          let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const dx = n2.x - n1.x;
+          const dy = n2.y - n1.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
           const minDist = n1.radius + n2.radius + 60;
 
           if (dist < minDist) {
@@ -176,11 +180,11 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
             const fx = dx * force;
             const fy = dy * force;
 
-            if (n1 !== draggedNode) {
+            if (n1 !== draggedNodeRef.current) {
               n1.vx -= fx;
               n1.vy -= fy;
             }
-            if (n2 !== draggedNode) {
+            if (n2 !== draggedNodeRef.current) {
               n2.vx += fx;
               n2.vy += fy;
             }
@@ -194,20 +198,20 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
         const target = nodes.find((n) => n.id === link.target);
 
         if (source && target) {
-          let dx = target.x - source.x;
-          let dy = target.y - source.y;
-          let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const dx = target.x - source.x;
+          const dy = target.y - source.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
           const idealDist = 120;
           const force = (dist - idealDist) * 0.005;
 
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
 
-          if (source !== draggedNode) {
+          if (source !== draggedNodeRef.current) {
             source.vx += fx;
             source.vy += fy;
           }
-          if (target !== draggedNode) {
+          if (target !== draggedNodeRef.current) {
             target.vx -= fx;
             target.vy -= fy;
           }
@@ -217,7 +221,7 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
       // 4. Update Position with Velocity Damping & STRICT CANVAS BOUNDARIES
       const pad = 45;
       nodes.forEach((node) => {
-        if (node === draggedNode) return;
+        if (node === draggedNodeRef.current) return;
 
         node.vx *= 0.85;
         node.vy *= 0.85;
@@ -290,7 +294,7 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
       window.removeEventListener('resize', handleResize);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [draggedNode, selectedNode, searchTerm]);
+  }, [selectedNode, searchTerm]);
 
   // Click & Drag interactions
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -307,24 +311,26 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
     });
 
     if (clicked) {
-      setDraggedNode(clicked);
+      draggedNodeRef.current = clicked;
       setSelectedNode(clicked);
     } else {
+      draggedNodeRef.current = null;
       setSelectedNode(null);
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!draggedNode || !canvasRef.current) return;
+    const dragged = draggedNodeRef.current;
+    if (!dragged || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    draggedNode.x = e.clientX - rect.left;
-    draggedNode.y = e.clientY - rect.top;
-    draggedNode.vx = 0;
-    draggedNode.vy = 0;
+    dragged.x = e.clientX - rect.left;
+    dragged.y = e.clientY - rect.top;
+    dragged.vx = 0;
+    dragged.vy = 0;
   };
 
   const handleMouseUp = () => {
-    setDraggedNode(null);
+    draggedNodeRef.current = null;
   };
 
   return (

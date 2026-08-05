@@ -32,11 +32,21 @@ public class IncidentService implements GetIncidentsUseCase {
         return repository.findById(id);
     }
 
+    /**
+     * Aggregate statistics keyed in snake_case.
+     *
+     * <p>These are {@link Map} entries, not bean properties, so Jackson's
+     * configured SNAKE_CASE naming strategy does not rewrite them — the keys
+     * must already match the {@code IncidentStats} contract the web client
+     * consumes ({@code by_severity}, {@code total_casualties}, ...).
+     */
     @Override
     public Map<String, Object> getAggregateStats() {
         List<Incident> incidents = repository.findAll();
         Map<String, Object> stats = new HashMap<>();
         stats.put("total", incidents.size());
+        // Alias consumed by the institutional reporting clients.
+        stats.put("total_incidents", incidents.size());
 
         // Severity distribution using labels
         Map<String, Long> bySeverity = new HashMap<>();
@@ -44,36 +54,36 @@ public class IncidentService implements GetIncidentsUseCase {
             String label = i.severityLabel();
             bySeverity.merge(label, 1L, Long::sum);
         }
-        stats.put("bySeverity", bySeverity);
+        stats.put("by_severity", bySeverity);
 
         // Weather distribution
         Map<String, Long> byWeather = new HashMap<>();
         for (Incident i : incidents) {
             byWeather.merge(i.weatherCondition(), 1L, Long::sum);
         }
-        stats.put("byWeather", byWeather);
+        stats.put("by_weather", byWeather);
 
         // Road classification distribution
         Map<String, Long> byRoad = new HashMap<>();
         for (Incident i : incidents) {
             byRoad.merge(i.roadClassification(), 1L, Long::sum);
         }
-        stats.put("byRoadType", byRoad);
+        stats.put("by_road_type", byRoad);
 
         // Light condition distribution
         Map<String, Long> byLight = new HashMap<>();
         for (Incident i : incidents) {
             byLight.merge(i.lightCondition(), 1L, Long::sum);
         }
-        stats.put("byLightCondition", byLight);
+        stats.put("by_light_condition", byLight);
 
         // Total casualties
         int totalCasualties = incidents.stream().mapToInt(Incident::numCasualties).sum();
-        stats.put("totalCasualties", totalCasualties);
+        stats.put("total_casualties", totalCasualties);
 
         // Average severity
         double avgSeverity = incidents.stream().mapToInt(Incident::severity).average().orElse(0.0);
-        stats.put("averageSeverity", Math.round(avgSeverity * 100.0) / 100.0);
+        stats.put("average_severity", Math.round(avgSeverity * 100.0) / 100.0);
 
         return stats;
     }

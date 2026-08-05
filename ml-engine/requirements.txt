@@ -9,3 +9,7 @@ numpy
 scipy
 networkx
 pyproj
+
+# Test dependencies (required by ml-engine/tests)
+pytest
+httpx2

@@ -73,7 +73,7 @@ function generateLocalIncidents(centerLat: number, centerLng: number, count: num
     const distance = Math.abs(gaussianRandom(0.006, 0.005));
 
     let lat = hub.lat + Math.sin(angle) * distance;
-    let lng = hub.lng + Math.cos(angle) * distance;
+    const lng = hub.lng + Math.cos(angle) * distance;
 
     if (isAccra && lat < 5.548) {
       lat = 5.548 + Math.abs(gaussianRandom(0.01, 0.005));
@@ -119,7 +119,22 @@ export async function getIncidents(): Promise<Incident[]> {
       console.warn(`[API] getIncidents returned non-OK status: ${res.status} ${res.statusText}`);
     }
   } catch (error) {
-    console.warn('[API] Failed to fetch incidents from backend, using fallback dataset:', error);
+    console.warn('[API] Failed to fetch incidents from backend, trying local dataset route:', error);
+  }
+
+  // Second choice: the bundled open-data horizon served by the Next.js route
+  // handler. These are the same real records the backend loads, so prefer them
+  // over synthesizing coordinates.
+  try {
+    const res = await fetch('/api/incidents', { cache: 'no-store' });
+    if (res.ok) {
+      const data: Incident[] = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    }
+  } catch (error) {
+    console.warn('[API] Local dataset route unavailable, using generated fallback:', error);
   }
 
   return generateLocalIncidents(currentCenterLat, currentCenterLng, 300);

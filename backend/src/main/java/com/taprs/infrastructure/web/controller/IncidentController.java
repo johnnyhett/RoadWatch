@@ -2,6 +2,7 @@ package com.taprs.infrastructure.web.controller;
 
 import com.taprs.application.port.in.GetIncidentsUseCase;
 import com.taprs.domain.model.Incident;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -24,9 +25,18 @@ public class IncidentController {
         return getIncidentsUseCase.getAllIncidents();
     }
 
+    /**
+     * Returns 404 for an unknown id. Returning the {@code null} lookup result
+     * directly would answer 200 with an empty body, which reads as success to
+     * every client.
+     */
     @GetMapping("/{id}")
-    public Incident getIncidentById(@PathVariable String id) {
-        return getIncidentsUseCase.getIncidentById(id);
+    public ResponseEntity<Incident> getIncidentById(@PathVariable String id) {
+        Incident incident = getIncidentsUseCase.getIncidentById(id);
+        if (incident == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(incident);
     }
 
     @GetMapping("/stats")

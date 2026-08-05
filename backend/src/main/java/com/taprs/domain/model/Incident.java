@@ -32,7 +32,7 @@ public record Incident(
             case 1 -> "Fatal";
             case 2 -> "Serious";
             case 3 -> "Slight";
-            case 4 -> "Damage_Only";
+            case 4 -> "Damage Only";
             default -> "Unknown";
         };
     }

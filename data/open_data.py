@@ -11,6 +11,68 @@ from typing import Dict, Any, List, Optional
 import datetime
 import uuid
 
+# Fields that together identify a record as already being in the unified Incident
+# form produced by the converters below.
+UNIFIED_REQUIRED_FIELDS = ("latitude", "longitude", "severity", "timestamp")
+
+# Every key a unified Incident dict carries, with the default used when an
+# already-unified record is missing an optional one.
+UNIFIED_DEFAULTS: Dict[str, Any] = {
+    "source_schema": "UNIFIED",
+    "region": "Unknown",
+    "district": "Unknown",
+    "num_vehicles": 1,
+    "num_casualties": 0,
+    "weather_condition": "Clear",
+    "road_surface_condition": "Dry",
+    "light_condition": "Daylight",
+    "road_classification": "Urban_Street",
+    "speed_limit": 50,
+    "junction_detail": "Not_At_Junction",
+    "vehicle_types": ["Car"],
+    "contributing_factors": ["Unknown"],
+}
+
+
+def is_unified(record: Dict[str, Any]) -> bool:
+    """
+    True when a record is already in the unified Incident form.
+
+    Agency source records use their own field names (``Latitude``/``LATITUDE``,
+    ``Accident_Severity``, ``severity_level``, ...), so the lowercase unified
+    quartet is an unambiguous marker. ``severity`` must additionally be an
+    already-normalized 1-4 integer rather than an agency severity label.
+    """
+    if not isinstance(record, dict):
+        return False
+    if not all(field in record for field in UNIFIED_REQUIRED_FIELDS):
+        return False
+    try:
+        severity = int(record["severity"])
+        float(record["latitude"])
+        float(record["longitude"])
+    except (TypeError, ValueError):
+        return False
+    return 1 <= severity <= 4
+
+
+def passthrough_unified(record: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Return an already-unified record unchanged apart from filling in any missing
+    optional field. Keeps :func:`convert_to_unified` idempotent so re-ingesting
+    a stored dataset never overwrites real values with schema defaults.
+    """
+    out = dict(record)
+    out["accident_id"] = str(record.get("accident_id") or uuid.uuid4())
+    out["latitude"] = float(record["latitude"])
+    out["longitude"] = float(record["longitude"])
+    out["severity"] = int(record["severity"])
+    for key, default in UNIFIED_DEFAULTS.items():
+        if out.get(key) is None:
+            out[key] = list(default) if isinstance(default, list) else default
+    return out
+
+
 class BaseSchemaConverter:
     @staticmethod
     def normalize_severity(raw_severity: Any) -> int:
@@ -280,8 +342,17 @@ def convert_to_unified(record: Dict[str, Any], schema_type: str) -> Dict[str, An
     """
     Ingest a record from one of the authentic schemas and return a unified Incident dict.
     schema_type: "GHANA_NRSA" | "UK_STATS19" | "US_NHTSA_FARS" | "EU_CARE"
+
+    The conversion is idempotent: a record that is already unified is returned
+    as-is. Without that guard, re-ingesting a stored unified dataset would send
+    every record down an agency converter, whose ``record.get(...)`` lookups
+    would all miss and silently replace real coordinates, severities and
+    conditions with per-schema fallback constants.
     """
-    schema_type_upper = schema_type.upper().replace("-", "_").replace(" ", "_")
+    if is_unified(record):
+        return passthrough_unified(record)
+
+    schema_type_upper = (schema_type or "").upper().replace("-", "_").replace(" ", "_")
     if "GHANA" in schema_type_upper or "NRSA" in schema_type_upper:
         return GhanaNRSASchema.to_unified(record)
     elif "UK" in schema_type_upper or "STATS19" in schema_type_upper:

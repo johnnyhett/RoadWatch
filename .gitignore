@@ -2,6 +2,7 @@
 # Java / Spring Boot
 # ========================
 backend/build/
+backend/target/
 backend/.gradle/
 backend/bin/
 backend/out/
@@ -16,9 +17,13 @@ backend/out/
 # ========================
 # Python
 # ========================
+__pycache__/
+.venv/
+.venv-e2e/
 ml-engine/__pycache__/
 ml-engine/.venv/
 ml-engine/venv/
+.pytest_cache/
 ml-engine/*.egg-info/
 ml-engine/.mypy_cache/
 *.pyc

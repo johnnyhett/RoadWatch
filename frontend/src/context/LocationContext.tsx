@@ -49,14 +49,16 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {}
 
+    // Secondary provider. Must stay on https: a plain-http request from an
+    // https page is blocked as mixed content and never reaches the network.
     try {
-      const res2 = await fetch('http://ip-api.com/json/');
+      const res2 = await fetch('https://ipwho.is/');
       if (res2.ok) {
         const d = await res2.json();
-        if (d.lat && d.lon) {
+        if (d.latitude && d.longitude) {
           return {
-            latitude: d.lat,
-            longitude: d.lon,
+            latitude: d.latitude,
+            longitude: d.longitude,
             city: d.city || 'Kumasi',
             country: d.country || 'Ghana',
           };

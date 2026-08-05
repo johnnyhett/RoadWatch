@@ -358,7 +358,16 @@ class TestFeatureR3_3_EndpointHardeningDTOSync:
         assert resp1.get("risk_score") != resp2.get("risk_score") or resp1.get("risk_level") != resp2.get("risk_level")
 
     def test_r3_3_2_cors_header_verification(self, api_client):
-        resp = api_client.options(f"{BACKEND_URL}/api/v1/incidents/")
+        # A preflight must carry Origin and Access-Control-Request-Method; without
+        # them the request is not a CORS request at all and the spec requires the
+        # server to omit the Access-Control-* response headers.
+        resp = api_client.options(
+            f"{BACKEND_URL}/api/v1/incidents/",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
         assert resp.status_code == 200
         headers = {k.lower(): v for k, v in resp.headers.items()}
         assert "access-control-allow-origin" in headers
