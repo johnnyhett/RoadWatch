@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { predictRisk } from '@/lib/api';
 import { RiskPrediction } from '@/types';
-import { Zap, AlertTriangle, Activity, MapPin, Wrench, ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
+import { Zap, AlertTriangle, Activity, MapPin, Wrench, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useLocationContext } from '@/context/LocationContext';
 import { motion } from 'framer-motion';
 
@@ -39,34 +39,47 @@ export default function RiskPredictor() {
     }
   };
 
-  const handlePredict = async (applyMitigation = false) => {
+  const buildFeatures = (applyMitigation: boolean) => ({
+    // If mitigations applied, simulate reduced speed & upgraded lighting
+    weather: applyMitigation && weather === 'Raining' ? 'Clear' : weather,
+    light: applyMitigation ? 'Darkness_Lit' : light,
+    road_type: roadType,
+    speed_limit: applyMitigation ? Math.max(30, speedLimit - 15) : speedLimit,
+    hour: 22,
+    day_of_week: 5,
+  });
+
+  const handlePredict = (applyMitigation = false) => {
     setLoading(true);
-    try {
-      // If mitigations applied, simulate reduced speed & upgraded lighting
-      const effectiveSpeed = applyMitigation ? Math.max(30, speedLimit - 15) : speedLimit;
-      const effectiveLight = applyMitigation ? 'Darkness_Lit' : light;
-      const effectiveWeather = applyMitigation && weather === 'Raining' ? 'Clear' : weather;
-
-      const res = await predictRisk({
-        weather: effectiveWeather,
-        light: effectiveLight,
-        road_type: roadType,
-        speed_limit: effectiveSpeed,
-        hour: 22,
-        day_of_week: 5,
-      });
-
-      setPrediction(res);
-      setMitigationsApplied(applyMitigation);
-    } catch (err) {
-      console.error('Risk prediction error:', err);
-    } finally {
-      setLoading(false);
-    }
+    return predictRisk(buildFeatures(applyMitigation))
+      .then((res) => {
+        setPrediction(res);
+        setMitigationsApplied(applyMitigation);
+      })
+      .catch((err) => console.error('Risk prediction error:', err))
+      .finally(() => setLoading(false));
   };
 
+  // Re-runs the baseline assessment whenever the site parameters change.
   useEffect(() => {
-    handlePredict(false);
+    let cancelled = false;
+    predictRisk({
+      weather,
+      light,
+      road_type: roadType,
+      speed_limit: speedLimit,
+      hour: 22,
+      day_of_week: 5,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        setPrediction(res);
+        setMitigationsApplied(false);
+      })
+      .catch((err) => console.error('Risk prediction error:', err));
+    return () => {
+      cancelled = true;
+    };
   }, [selectedLocation, weather, light, roadType, speedLimit]);
 
   return (

@@ -1,5 +1,8 @@
 import json
 import os
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +24,16 @@ try:
 except ImportError:
     convert_to_unified = lambda record, schema: record
 
-app = FastAPI(title="RoadWatch — Traffic Accident Pattern Recognition System ML Engine")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    load_and_train_real_data()
+    yield
+
+
+app = FastAPI(
+    title="RoadWatch — Traffic Accident Pattern Recognition System ML Engine",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,10 +73,6 @@ def load_and_train_real_data():
         print(f"[OK] ML Models Trained successfully on {len(dataset)} real/unified collision records.")
     else:
         print(f"Warning: Dataset not found at {data_path}")
-
-@app.on_event("startup")
-async def startup_event():
-    load_and_train_real_data()
 
 class TrainRequest(BaseModel):
     records: Optional[List[Dict[str, Any]]] = None
@@ -168,16 +176,37 @@ async def generate_safety_audit(req: SafetyAuditRequest):
     cluster_res = detector.detect(dataset) if dataset else {"blackspots": []}
     blackspots = cluster_res.get("blackspots", [])
     
-    total_accidents = len(dataset) if dataset else 300
-    blackspots_count = len(blackspots) if blackspots else 4
-    
-    factor_counts = {
-        "Speeding & Excessive Speed": int(total_accidents * 0.32),
-        "Wet Surface & Slippery Friction": int(total_accidents * 0.24),
-        "Darkness & Luminaire Deficit": int(total_accidents * 0.18),
-        "Junction Conflicts & Sight Distance": int(total_accidents * 0.15),
-        "Pedestrian Vulnerability": int(total_accidents * 0.11),
-    }
+    total_accidents = len(dataset)
+    blackspots_count = len(blackspots)
+
+    # Contributing-factor breakdown counted from the ingested records rather than
+    # assumed from fixed percentages.
+    factor_counts: Dict[str, int] = {}
+    for record in dataset:
+        for factor in record.get("contributing_factors") or []:
+            key = str(factor).replace("_", " ")
+            factor_counts[key] = factor_counts.get(key, 0) + 1
+    factor_counts = dict(sorted(factor_counts.items(), key=lambda kv: kv[1], reverse=True)[:8])
+
+    # Safety score: share of casualties that are fatal/serious, inverted onto 0-100.
+    severe = sum(1 for r in dataset if int(r.get("severity", 4)) <= 2)
+    safety_score = round(100.0 - (severe / total_accidents * 100.0), 1) if total_accidents else 0.0
+
+    if safety_score >= 85:
+        rating = "A (Low Risk - Monitor)"
+    elif safety_score >= 70:
+        rating = "B- (Moderate Risk - Targeted Action Required)"
+    elif safety_score >= 55:
+        rating = "C (Elevated Risk - Intervention Required)"
+    else:
+        rating = "D (High Risk - Urgent Intervention Required)"
+
+    # Highest-risk clusters become the named critical corridors.
+    top_blackspots = sorted(blackspots, key=lambda b: b.get("risk_score", 0), reverse=True)[:3]
+    critical_corridors = [
+        f"Cluster {b.get('cluster_id')} @ ({b['center'][0]:.4f}, {b['center'][1]:.4f}) — {b.get('incident_count', 0)} incidents"
+        for b in top_blackspots
+    ] or ["No significant clusters detected in the ingested horizon"]
 
     priority_interventions = [
         {
@@ -218,23 +247,26 @@ async def generate_safety_audit(req: SafetyAuditRequest):
         }
     ]
 
+    compliance = "COMPLIANT" if safety_score >= 85 else "NON_COMPLIANT_ACTION_REQUIRED"
+
     return {
-        "auditId": f"AUD-2026-MUNI-{int(req.latitude * 1000 if req.latitude else 6688)}",
+        "auditId": f"AUD-2026-MUNI-{int((req.latitude or 6.688) * 1000)}",
         "jurisdiction": req.jurisdiction or "Metropolitan Traffic Region",
-        "auditTimestamp": "2026-08-04T16:45:00Z",
+        "auditTimestamp": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "totalAccidentsAnalyzed": total_accidents,
         "blackspotsIdentified": blackspots_count,
-        "overallSafetyRating": "B- (Moderate Risk - Targeted Action Required)",
-        "safetyScore": 72.5,
-        "criticalCorridors": [
-            "Central Interchange Corridor (A1)",
-            "North Highway Arterial Bypass",
-            "West Commercial Ring Road"
-        ],
+        "overallSafetyRating": rating,
+        "safetyScore": safety_score,
+        "criticalCorridors": critical_corridors,
         "factorBreakdown": factor_counts,
         "priorityInterventions": priority_interventions,
-        "regulatoryComplianceStatus": "NON_COMPLIANT_ACTION_REQUIRED",
-        "summary": "Municipal traffic safety audit identified high-risk collision clusters. Implementation of recommended anti-skid surfacing and lighting retrofits is projected to achieve a 35%+ reduction in fatal & serious casualties."
+        "regulatoryComplianceStatus": compliance,
+        "summary": (
+            f"Municipal traffic safety audit analyzed {total_accidents} collision records and identified "
+            f"{blackspots_count} high-risk clusters, of which {severe} involved fatal or serious casualties. "
+            "Implementation of the recommended anti-skid surfacing and lighting retrofits is projected to "
+            "achieve a 35%+ reduction in fatal & serious casualties."
+        )
     }
 
 if __name__ == "__main__":

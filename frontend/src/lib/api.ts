@@ -1,6 +1,14 @@
 import { Incident, Blackspot, AssociationRule, TemporalPatterns, IncidentStats, RiskPrediction, RouteDetails, RouteComparison, SafetyAuditRequest, SafetyAuditReport } from '@/types';
 import { API_BASE_URL } from './constants';
 
+export interface SafetyRouteParams {
+  origin?: [number, number];
+  destination?: [number, number];
+  alpha?: number;
+  beta?: number;
+  mode?: string;
+}
+
 let currentCenterLat = 6.6885; // Kumasi default
 let currentCenterLng = -1.6244;
 
@@ -73,7 +81,7 @@ function generateLocalIncidents(centerLat: number, centerLng: number, count: num
     const distance = Math.abs(gaussianRandom(0.006, 0.005));
 
     let lat = hub.lat + Math.sin(angle) * distance;
-    let lng = hub.lng + Math.cos(angle) * distance;
+    const lng = hub.lng + Math.cos(angle) * distance;
 
     if (isAccra && lat < 5.548) {
       lat = 5.548 + Math.abs(gaussianRandom(0.01, 0.005));
@@ -119,7 +127,22 @@ export async function getIncidents(): Promise<Incident[]> {
       console.warn(`[API] getIncidents returned non-OK status: ${res.status} ${res.statusText}`);
     }
   } catch (error) {
-    console.warn('[API] Failed to fetch incidents from backend, using fallback dataset:', error);
+    console.warn('[API] Failed to fetch incidents from backend, trying local dataset route:', error);
+  }
+
+  // Second choice: the bundled open-data horizon served by the Next.js route
+  // handler. These are the same real records the backend loads, so prefer them
+  // over synthesizing coordinates.
+  try {
+    const res = await fetch('/api/incidents', { cache: 'no-store' });
+    if (res.ok) {
+      const data: Incident[] = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    }
+  } catch (error) {
+    console.warn('[API] Local dataset route unavailable, using generated fallback:', error);
   }
 
   return generateLocalIncidents(currentCenterLat, currentCenterLng, 300);
@@ -292,7 +315,7 @@ export async function getIncidentStats(): Promise<IncidentStats> {
   };
 }
 
-export async function predictRisk(features: Record<string, any>): Promise<RiskPrediction> {
+export async function predictRisk(features: Record<string, string | number | undefined>): Promise<RiskPrediction> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/v1/predictions/risk`, {
       method: 'POST',
@@ -323,7 +346,7 @@ export async function predictRisk(features: Record<string, any>): Promise<RiskPr
   };
 }
 
-export async function computeSafetyRoute(params: any): Promise<RouteComparison> {
+export async function computeSafetyRoute(params: SafetyRouteParams): Promise<RouteComparison> {
   const origin: [number, number] = params.origin || [6.6885, -1.6244];
   const dest: [number, number] = params.destination || [6.7050, -1.6050];
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Database, ShieldCheck, Check, ChevronDown, Layers } from 'lucide-react';
+import { Check, ChevronDown, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface CountryJoinedSource {

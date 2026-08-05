@@ -17,6 +17,18 @@ interface LocationContextType {
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
+/** Reads the persisted location, or null when absent or unreadable. */
+async function readStoredLocation(): Promise<UserLocation | null> {
+  try {
+    const stored = sessionStorage.getItem('user_location');
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as UserLocation;
+    return typeof parsed?.latitude === 'number' && typeof parsed?.longitude === 'number' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [location, setLocationState] = useState<UserLocation | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,7 +41,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     setFlyToCoordsState([loc.latitude, loc.longitude]);
     try {
       sessionStorage.setItem('user_location', JSON.stringify(loc));
-    } catch (e) {}
+    } catch {}
   }, []);
 
   // IP Geolocation fallback query with granular city & region resolution
@@ -47,22 +59,24 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           };
         }
       }
-    } catch (e) {}
+    } catch {}
 
+    // Secondary provider. Must stay on https: a plain-http request from an
+    // https page is blocked as mixed content and never reaches the network.
     try {
-      const res2 = await fetch('http://ip-api.com/json/');
+      const res2 = await fetch('https://ipwho.is/');
       if (res2.ok) {
         const d = await res2.json();
-        if (d.lat && d.lon) {
+        if (d.latitude && d.longitude) {
           return {
-            latitude: d.lat,
-            longitude: d.lon,
+            latitude: d.latitude,
+            longitude: d.longitude,
             city: d.city || 'Kumasi',
             country: d.country || 'Ghana',
           };
         }
       }
-    } catch (e) {}
+    } catch {}
 
     return null;
   };
@@ -93,7 +107,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
                 city = neighborhood && town ? `${neighborhood}, ${town}` : town || neighborhood || 'Kumasi';
                 country = addr.country || 'Ghana';
               }
-            } catch (e) {}
+            } catch {}
 
             resolve({
               latitude,
@@ -139,24 +153,31 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     setGlobalLocationCenter(6.6885, -1.6244);
     try {
       sessionStorage.removeItem('user_location');
-    } catch (e) {}
+    } catch {}
   }, []);
 
-  // Auto-detect exact location on initial load
+  // Restore the persisted location on mount, falling back to detection.
+  //
+  // sessionStorage does not exist during server rendering, so this cannot be a
+  // lazy useState initializer without a hydration mismatch. Reading it through
+  // an async step keeps the state update off the synchronous render path.
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem('user_location');
+    let cancelled = false;
+
+    readStoredLocation().then((stored) => {
+      if (cancelled) return;
       if (stored) {
-        const parsed = JSON.parse(stored);
-        setLocationState(parsed);
-        setGlobalLocationCenter(parsed.latitude, parsed.longitude);
-        setFlyToCoordsState([parsed.latitude, parsed.longitude]);
+        setLocationState(stored);
+        setGlobalLocationCenter(stored.latitude, stored.longitude);
+        setFlyToCoordsState([stored.latitude, stored.longitude]);
       } else {
         enableGps();
       }
-    } catch (e) {
-      enableGps();
-    }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [enableGps]);
 
   return (

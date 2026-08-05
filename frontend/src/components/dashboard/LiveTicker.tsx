@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Radio, Navigation, AlertTriangle, ChevronRight, Zap } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Radio, Navigation, AlertTriangle, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
@@ -18,43 +18,55 @@ interface LiveTickerProps {
   onFlyTo?: (lat: number, lng: number) => void;
 }
 
-export default function LiveTicker({ onFlyTo }: LiveTickerProps) {
-  const { latestEvent, isConnected } = useWebSocket('/topic/incidents/live');
+/** Shown before any live telemetry has arrived. */
+const SEED_ALERTS: IncidentAlert[] = [
+  { id: 'seed-1', time: '1m ago', message: 'High-risk collision reported near Central Junction Hub', lat: 6.6885, lng: -1.6244, type: 'accident' },
+  { id: 'seed-2', time: '3m ago', message: 'Rain hazard & unlit surface increasing crash probability', lat: 6.7050, lng: -1.6050, type: 'hazard' },
+  { id: 'seed-3', time: '5m ago', message: 'HDBSCAN identified high-risk cluster formation on Highway Bypass', lat: 6.6745, lng: -1.5714, type: 'blackspot' },
+];
 
-  const [alerts, setAlerts] = useState<IncidentAlert[]>([
-    { id: '1', time: '1m ago', message: 'High-risk collision reported near Central Junction Hub', lat: 6.6885, lng: -1.6244, type: 'accident' },
-    { id: '2', time: '3m ago', message: 'Rain hazard & unlit surface increasing crash probability', lat: 6.7050, lng: -1.6050, type: 'hazard' },
-    { id: '3', time: '5m ago', message: 'HDBSCAN identified high-risk cluster formation on Highway Bypass', lat: 6.6745, lng: -1.5714, type: 'blackspot' },
-  ]);
+export default function LiveTicker({ onFlyTo }: LiveTickerProps) {
+  // The hook already accumulates the event feed, so mirroring it into local
+  // state would keep a second copy that can drift from the source.
+  const { messages, isConnected } = useWebSocket('/topic/incidents/live');
+
+  const alerts = useMemo<IncidentAlert[]>(() => {
+    const live = messages
+      .filter((event) => event.incident)
+      .map((event) => {
+        const inc = event.incident!;
+        return {
+          id: event.eventId || String(inc.latitude),
+          time: 'JUST NOW',
+          message: `EMERGENCY TELEMETRY: ${event.predictedSeverity || 'HIGH'} severity incident at (${inc.latitude?.toFixed(4)}, ${inc.longitude?.toFixed(4)}) - ${inc.weather_condition || 'Clear'}`,
+          lat: inc.latitude ?? 6.6885,
+          lng: inc.longitude ?? -1.6244,
+          type: 'accident' as const,
+        };
+      });
+    return [...live, ...SEED_ALERTS].slice(0, 10);
+  }, [messages]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Prepend live incoming STOMP events to feed
-  useEffect(() => {
-    if (latestEvent && latestEvent.incident) {
-      const inc = latestEvent.incident;
-      const newAlert: IncidentAlert = {
-        id: latestEvent.eventId || String(Date.now()),
-        time: 'JUST NOW',
-        message: `EMERGENCY TELEMETRY: ${latestEvent.predictedSeverity || 'HIGH'} severity incident at (${inc.latitude?.toFixed(4)}, ${inc.longitude?.toFixed(4)}) - ${inc.weather_condition || 'Clear'}`,
-        lat: inc.latitude || 6.6885,
-        lng: inc.longitude || -1.6244,
-        type: 'accident',
-      };
-
-      setAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)].slice(0, 10));
-      setCurrentIndex(0);
-    }
-  }, [latestEvent]);
+  // Jump back to the newest entry when one arrives. Adjusting state during
+  // render (rather than in an effect) is React's documented pattern for
+  // reacting to a changed input and avoids the extra render pass.
+  const newestId = alerts[0]?.id;
+  const [seenNewestId, setSeenNewestId] = useState(newestId);
+  if (newestId !== seenNewestId) {
+    setSeenNewestId(newestId);
+    setCurrentIndex(0);
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % alerts.length);
+      setCurrentIndex((prev) => prev + 1);
     }, 5000);
     return () => clearInterval(timer);
-  }, [alerts.length]);
+  }, []);
 
-  const current = alerts[currentIndex] || alerts[0];
+  const current = alerts[currentIndex % alerts.length];
 
   const handleFly = () => {
     if (onFlyTo && current) {

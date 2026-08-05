@@ -28,20 +28,28 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="h-14 glass-panel border-b border-white/10 z-50 grid grid-cols-12 items-center px-5 shrink-0 relative gap-4 shadow-xl">
-        {/* LEFT SECTION (Col 1-4): Brand Identity, Location Badge & Data Source Selector */}
-        <div className="col-span-4 flex items-center gap-3">
+      {/*
+        Flex rather than a rigid 12-column grid: fixed thirds cannot shrink, so
+        on narrow viewports each section overflowed its cell and the controls
+        rendered on top of one another. Sections now shrink in priority order
+        and non-essential items drop out at smaller breakpoints.
+      */}
+      <header className="h-14 glass-panel border-b border-white/10 z-50 flex items-center px-3 sm:px-5 shrink-0 relative gap-2 sm:gap-4 shadow-xl overflow-hidden">
+        {/* LEFT: Brand Identity, Data Source Selector & Location Badge */}
+        <div className="flex items-center gap-3 min-w-0 shrink">
           <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
             <RoadWatchLogo size={30} className="group-hover:scale-105 transition-transform duration-300" />
             <div>
-              <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-1 font-heading">
+              <h1 className="text-base font-bold tracking-tight text-white items-center gap-1 font-heading hidden sm:flex">
                 Road<span className="text-cyan-400">Watch</span>
               </h1>
             </div>
           </Link>
 
           {/* Data Source Selector */}
-          <DataSourceSelector />
+          <div className="hidden lg:block min-w-0">
+            <DataSourceSelector />
+          </div>
 
           {location ? (
             <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-xs text-cyan-300 font-mono">
@@ -67,18 +75,18 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* CENTER SECTION (Col 5-8): EXACT MIDDLE Search Bar */}
-        <div className="col-span-4 flex justify-center w-full max-w-lg mx-auto">
+        {/* CENTER: Search bar, the one element allowed to absorb spare width */}
+        <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-lg mx-auto">
           <GlobalLocationSearch />
         </div>
 
-        {/* RIGHT SECTION (Col 9-12): Light/Dark Quick Toggle, Personalize Trigger, Audit Trigger & Segmented Nav */}
-        <div className="col-span-4 flex justify-end items-center gap-2">
+        {/* RIGHT: Theme toggle, Personalize, Audit & Segmented Nav */}
+        <div className="flex flex-1 md:flex-none justify-end items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Quick Light / Dark Theme Toggle Button */}
           <button
             onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
             title={`Switch to ${themeMode === 'light' ? 'Dark' : 'Light'} Mode`}
-            className="p-2 rounded-xl glass-panel text-white/80 hover:text-white transition-all shadow-md flex items-center justify-center cursor-pointer"
+            className="p-2 rounded-xl glass-panel text-white/80 hover:text-white transition-all shadow-md flex items-center justify-center cursor-pointer shrink-0"
           >
             {themeMode === 'light' ? (
               <Moon className="w-4 h-4 text-slate-800" />
@@ -90,18 +98,19 @@ export default function Navbar() {
           <button
             onClick={() => setPrefsOpen(true)}
             title="Operational Personalization"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-300 font-semibold text-xs transition-all shadow-[0_0_10px_rgba(0,212,255,0.2)]"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-300 font-semibold text-xs transition-all shadow-[0_0_10px_rgba(0,212,255,0.2)] shrink-0"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline font-mono">Personalize</span>
+            <span className="hidden xl:inline font-mono">Personalize</span>
           </button>
 
           <button
             onClick={() => setAuditOpen(true)}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-300 font-semibold text-xs transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+            title="Municipal Safety Audit"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-300 font-semibold text-xs transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)] shrink-0"
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Safety Audit</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="hidden xl:inline">Safety Audit</span>
           </button>
 
           <nav className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/10 shrink-0">
@@ -119,7 +128,7 @@ export default function Navbar() {
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-cyan-400' : 'text-white/50'}`} />
-                  <span className="hidden sm:inline">{tab.name}</span>
+                  <span className="hidden lg:inline">{tab.name}</span>
                 </Link>
               );
             })}

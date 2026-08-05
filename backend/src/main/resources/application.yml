@@ -2,7 +2,10 @@ server:
   port: 8080
 
 ml-engine:
-  base-url: http://localhost:8000
+  base-url: ${ML_ENGINE_BASE_URL:http://localhost:8000}
+  # Bounds every outbound analytics call so a hung engine cannot pin
+  # servlet threads until the container's pool is exhausted.
+  timeout-seconds: ${ML_ENGINE_TIMEOUT_SECONDS:30}
 
 spring:
   jackson:
@@ -10,3 +13,11 @@ spring:
       write-dates-as-timestamps: false
     default-property-inclusion: non_null
     property-naming-strategy: SNAKE_CASE
+  # The clustering/heatmap calls post the whole incident horizon upstream,
+  # which exceeds WebFlux's 256 KB default in-memory buffer.
+  codec:
+    max-in-memory-size: 32MB
+
+logging:
+  level:
+    com.taprs: INFO

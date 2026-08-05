@@ -9,15 +9,22 @@ class AssociationMiner:
         df = pd.DataFrame(incidents)
         features = ["weather_condition", "road_surface_condition", "light_condition", "junction_detail", "road_classification"]
         
+        present_features = [f for f in features if f in df.columns]
+
         data = []
         for _, row in df.iterrows():
             itemset = []
-            for f in features:
+            for f in present_features:
                 if pd.notna(row[f]):
                     itemset.append(f"{f}={row[f]}")
-            for cf in row.get('contributing_factors', []):
-                itemset.append(f"factor={cf}")
+            factors = row.get('contributing_factors') if 'contributing_factors' in df.columns else None
+            if isinstance(factors, (list, tuple, set)):
+                for cf in factors:
+                    itemset.append(f"factor={cf}")
             data.append(itemset)
+
+        if not any(data):
+            return {"rules": []}
             
         # One-hot encode
         unique_items = set(item for itemset in data for item in itemset)

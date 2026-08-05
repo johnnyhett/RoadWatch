@@ -1,5 +1,6 @@
 package com.taprs.infrastructure.web.websocket;
 
+import com.taprs.application.port.out.IncidentRepositoryPort;
 import com.taprs.domain.model.Incident;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -7,16 +8,19 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Broadcasts simulated live traffic incidents every 5 seconds via WebSocket STOMP.
- * Generates incidents within London coordinates to match the synthetic dataset geography.
+ *
+ * <p>Hotspot centres are sampled from the incidents actually loaded into the
+ * repository, so the live ticker stays in the same geography as the ingested
+ * data horizon instead of being pinned to one hard-coded city.
  */
 @Component
 public class IncidentStreamHandler {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final IncidentRepositoryPort incidentRepository;
     private final Random random = new Random();
 
     private static final String[] WEATHER_OPTIONS = {"Clear", "Raining", "Fog", "Overcast"};
@@ -27,26 +31,34 @@ public class IncidentStreamHandler {
     private static final String[] FACTOR_OPTIONS = {"Speeding", "Distraction", "Drink_Driving", "Fatigue", "Weather_Related"};
     private static final String[] VEHICLE_OPTIONS = {"Car", "Motorcycle", "HGV", "Van", "Bicycle"};
 
-    // London hotspot centers for realistic simulation
-    private static final double[][] LONDON_HOTSPOTS = {
-        {51.5074, -0.1278},  // Westminster
-        {51.5155, -0.1419},  // Oxford Circus
-        {51.5013, -0.1419},  // Victoria
-        {51.5225, -0.0846},  // Old Street
-        {51.4975, -0.1357},  // Pimlico
-        {51.5194, -0.1270},  // Holborn
-    };
+    // Used only until the repository has finished loading the data horizon.
+    private static final double[] DEFAULT_HOTSPOT = {6.6885, -1.6244}; // Kumasi, Ghana
 
-    public IncidentStreamHandler(SimpMessagingTemplate messagingTemplate) {
+    public IncidentStreamHandler(SimpMessagingTemplate messagingTemplate,
+                                 IncidentRepositoryPort incidentRepository) {
         this.messagingTemplate = messagingTemplate;
+        this.incidentRepository = incidentRepository;
+    }
+
+    /**
+     * Picks a hotspot centre from a real loaded incident, falling back to the
+     * default centre while the repository is still empty.
+     */
+    private double[] pickHotspot() {
+        List<Incident> loaded = incidentRepository.findAll();
+        if (loaded.isEmpty()) {
+            return DEFAULT_HOTSPOT;
+        }
+        Incident seed = loaded.get(random.nextInt(loaded.size()));
+        return new double[]{seed.latitude(), seed.longitude()};
     }
 
     @Scheduled(fixedRate = 5000)
     public void broadcastNewIncident() {
         String eventId = UUID.randomUUID().toString();
 
-        // Pick a random London hotspot and add Gaussian noise
-        double[] hotspot = LONDON_HOTSPOTS[random.nextInt(LONDON_HOTSPOTS.length)];
+        // Sample a hotspot from the ingested data and add Gaussian noise
+        double[] hotspot = pickHotspot();
         double lat = hotspot[0] + random.nextGaussian() * 0.005;
         double lng = hotspot[1] + random.nextGaussian() * 0.005;
 

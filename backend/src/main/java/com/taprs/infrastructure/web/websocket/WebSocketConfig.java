@@ -18,6 +18,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setAllowedOrigins("*").withSockJS();
+        // setAllowedOriginPatterns, not setAllowedOrigins: the SockJS client
+        // sends its /ws/info XHR with credentials, and the CORS spec forbids the
+        // wildcard Access-Control-Allow-Origin on a credentialed request, so
+        // Spring omits the header entirely and the browser blocks the handshake.
+        // Patterns make Spring echo the requesting origin instead.
+        registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
     }
 }

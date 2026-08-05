@@ -3,6 +3,7 @@
 import { Blackspot } from '@/types';
 import { Target, AlertTriangle, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { humanizeFactor, formatMetric, formatScore } from '@/lib/format';
 
 interface BlackspotListProps {
   blackspots: Blackspot[];
@@ -28,7 +29,7 @@ export default function BlackspotList({
     <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto custom-scrollbar pr-1.5">
       {blackspots.map((spot, index) => {
         const isSelected = selectedBlackspotId === spot.cluster_id;
-        const topFactor = Object.keys(spot.primary_factors || {})[0] || 'High Density';
+        const topFactor = humanizeFactor(Object.keys(spot.primary_factors || {})[0]) || 'High Density';
 
         return (
           <motion.div
@@ -43,7 +44,7 @@ export default function BlackspotList({
                 : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-white/20'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div
                 className={`p-2 rounded-lg ${
                   spot.risk_score > 100
@@ -53,29 +54,29 @@ export default function BlackspotList({
                     : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                 }`}
               >
-                <AlertTriangle className="w-4 h-4" />
+                <AlertTriangle className="w-4 h-4 shrink-0" />
               </div>
 
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors font-heading">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <h4 className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors font-heading whitespace-nowrap">
                     Hotspot #{spot.cluster_id + 1}
                   </h4>
-                  <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                  <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 whitespace-nowrap shrink-0">
                     {spot.incident_count} crashes
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-white/50">Primary: {topFactor}</span>
-                  <span className="text-[10px] text-white/40 font-mono">Sev: {spot.avg_severity}</span>
+                <div className="flex items-baseline gap-2 mt-0.5 min-w-0">
+                  <span className="text-[10px] text-white/50 truncate" title={topFactor}>Primary: {topFactor}</span>
+                  <span className="text-[10px] text-white/40 font-mono whitespace-nowrap shrink-0">Sev: {formatMetric(spot.avg_severity)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 shrink-0 pl-1">
               <div className="text-right">
-                <span className="text-[9px] uppercase tracking-wider text-white/40 block font-mono">Risk Score</span>
-                <span className="text-sm font-bold font-mono text-red-400">{spot.risk_score}</span>
+                <span className="text-[9px] uppercase tracking-wider text-white/40 block font-mono whitespace-nowrap">Risk</span>
+                <span className="text-sm font-bold font-mono text-red-400">{formatScore(spot.risk_score)}</span>
               </div>
               <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
             </div>

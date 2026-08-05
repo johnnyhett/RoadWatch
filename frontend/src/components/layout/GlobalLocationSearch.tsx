@@ -70,12 +70,13 @@ export default function GlobalLocationSearch() {
 
   // Debounced geocoding search across ALL cities in Ghana and globally
   useEffect(() => {
-    if (!query.trim() || query.length < 2) {
-      setResults([]);
-      return;
-    }
+    const tooShort = !query.trim() || query.length < 2;
 
     const timer = setTimeout(async () => {
+      if (tooShort) {
+        setResults([]);
+        return;
+      }
       setLoading(true);
       try {
         const res = await fetch(
@@ -91,7 +92,7 @@ export default function GlobalLocationSearch() {
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, tooShort ? 0 : 300);
 
     return () => clearTimeout(timer);
   }, [query]);

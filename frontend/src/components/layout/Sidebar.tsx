@@ -1,6 +1,6 @@
 'use client';
 
-import { Map, BarChart2, Navigation, Layers, ShieldAlert, Activity } from 'lucide-react';
+import { Map, BarChart2, Navigation } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
