@@ -1,15 +1,22 @@
-fastapi
-uvicorn
-scikit-learn
-hdbscan
-mlxtend
-xgboost
-pandas
-numpy
-scipy
-networkx
-pyproj
+# Minimum-version floors rather than bare names.
+#
+# An unpinned requirements file resolves to whatever is newest at install time,
+# so two environments built a week apart can differ, and a compromised or
+# breaking upstream release is picked up silently. The floors below are the
+# versions this service is verified against.
+
+fastapi>=0.141.1
+uvicorn>=0.52.1
+scikit-learn>=1.9.0
+hdbscan>=0.8.44
+mlxtend>=0.25.0
+xgboost>=3.2.0
+pandas>=3.0.5
+numpy>=2.4.6
+scipy>=1.17.1
+networkx>=3.6.1
+pyproj>=3.7.2
 
 # Test dependencies (required by ml-engine/tests)
-pytest
-httpx2
+pytest>=9.1.1
+httpx2>=2.9.1

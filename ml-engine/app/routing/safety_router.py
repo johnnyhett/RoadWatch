@@ -86,11 +86,14 @@ class SafetyRouter:
                 lat, lng = float(lats[i]), float(lngs[j])
                 graph.add_node((i, j), pos=(lat, lng), risk=self._node_risk(lat, lng))
 
+        # 8-way connectivity. With only N/S and E/W edges every path is forced
+        # into axis-aligned staircases, which render as unnatural right angles
+        # and overstate distance by up to ~41% on diagonal corridors.
         for i in range(grid_size):
             for j in range(grid_size):
-                for di, dj in ((1, 0), (0, 1)):
+                for di, dj in ((1, 0), (0, 1), (1, 1), (1, -1)):
                     ni, nj = i + di, j + dj
-                    if ni >= grid_size or nj >= grid_size:
+                    if not (0 <= ni < grid_size and 0 <= nj < grid_size):
                         continue
                     a, b = (i, j), (ni, nj)
                     lat_a, lng_a = graph.nodes[a]['pos']

@@ -92,12 +92,17 @@ class BlackspotDetector:
         if 'latitude' not in df.columns or 'longitude' not in df.columns:
             return {"blackspots": []}
 
-        # Drop invalid lat/lng
-        df = df.dropna(subset=['latitude', 'longitude'])
+        # Coerce before dropping: dropna alone leaves non-numeric values in
+        # place, and HDBSCAN then fails on an object-dtype array with an opaque
+        # 500 rather than skipping the bad rows.
+        df = df.assign(
+            latitude=pd.to_numeric(df['latitude'], errors='coerce'),
+            longitude=pd.to_numeric(df['longitude'], errors='coerce'),
+        ).dropna(subset=['latitude', 'longitude'])
         if len(df) < min_cluster_size:
             return {"blackspots": []}
 
-        coords = df[['latitude', 'longitude']].values
+        coords = df[['latitude', 'longitude']].to_numpy(dtype=float)
 
         # HDBSCAN clustering
         clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, allow_single_cluster=True, metric='euclidean')
@@ -123,7 +128,11 @@ class BlackspotDetector:
             # Extract organic 6-point convex hull polygon bounds
             bounds = self.compute_organic_6pt_hull(cluster_coords)
 
-            avg_severity = float(cluster_data['severity'].mean()) if 'severity' in cluster_data.columns else 3.0
+            if 'severity' in cluster_data.columns:
+                severity_mean = pd.to_numeric(cluster_data['severity'], errors='coerce').mean()
+                avg_severity = float(severity_mean) if pd.notna(severity_mean) else 3.0
+            else:
+                avg_severity = 3.0
 
             factors: Dict[str, int] = {}
             if 'contributing_factors' in cluster_data.columns:

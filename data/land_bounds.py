@@ -5,6 +5,22 @@ Enforces land-only incident placement (zero ocean markers for coastal cities lik
 
 from typing import Dict, Any, List, Optional, Tuple
 
+
+def _coord(value: Any) -> Optional[float]:
+    """
+    Coerce a caller-supplied coordinate, or None when it is not a finite number.
+
+    These records arrive from unauthenticated API callers, so a bare float()
+    turns one malformed field into an unhandled 500 for the whole batch.
+    """
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed != parsed or parsed in (float("inf"), float("-inf")):  # NaN / inf
+        return None
+    return parsed
+
 class LandBoundFilter:
     """
     Coastal Coordinate Boundary Validator
@@ -41,8 +57,10 @@ class LandBoundFilter:
         If city is specified, check against city-specific land bounds.
         Otherwise, auto-detect region or check global coastal boundaries.
         """
-        if city and city.upper().replace(" ", "_") in cls.REGIONAL_LAND_BOUNDS:
-            bounds = cls.REGIONAL_LAND_BOUNDS[city.upper().replace(" ", "_")]
+        # `city` is caller-supplied and may be any JSON type.
+        city_key = city.upper().replace(" ", "_") if isinstance(city, str) else None
+        if city_key and city_key in cls.REGIONAL_LAND_BOUNDS:
+            bounds = cls.REGIONAL_LAND_BOUNDS[city_key]
             if not (bounds["lat_min"] <= lat <= bounds["lat_max"] and bounds["lng_min"] <= lng <= bounds["lng_max"]):
                 return False
             if bounds["ocean_line"](lat, lng):
@@ -83,8 +101,10 @@ class LandBoundFilter:
         """
         valid_incidents = []
         for inc in incidents:
-            lat = float(inc.get("latitude", 0.0))
-            lng = float(inc.get("longitude", 0.0))
+            lat = _coord(inc.get("latitude"))
+            lng = _coord(inc.get("longitude"))
+            if lat is None or lng is None:
+                continue
             city = inc.get("district") or inc.get("region")
             if cls.is_land_coordinate(lat, lng, city):
                 valid_incidents.append(inc)

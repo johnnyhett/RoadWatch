@@ -35,7 +35,10 @@ export default function BlackspotList({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
+            whileHover={{ x: 2 }}
+            // Cap the cascade: with 25+ clusters a per-item delay left the tail
+            // of the list invisible for over a second.
+            transition={{ delay: Math.min(index * 0.04, 0.4), duration: 0.35, ease: [0.22, 0.61, 0.36, 1] }}
             key={spot.cluster_id}
             onClick={() => onSelectBlackspot(spot)}
             className={`p-3 rounded-xl border transition-all duration-300 cursor-pointer flex items-center justify-between group ${

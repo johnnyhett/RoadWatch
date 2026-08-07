@@ -1,6 +1,13 @@
 server:
   port: 8080
 
+roadwatch:
+  cors:
+    # Allow-list, not a wildcard: these origins are echoed back with
+    # Access-Control-Allow-Credentials, so anything listed here can issue
+    # credentialed cross-origin requests. Override per deployment.
+    allowed-origins: ${ROADWATCH_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+
 ml-engine:
   base-url: ${ML_ENGINE_BASE_URL:http://localhost:8000}
   # Bounds every outbound analytics call so a hung engine cannot pin

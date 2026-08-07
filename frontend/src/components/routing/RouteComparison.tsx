@@ -3,6 +3,7 @@
 import { RouteComparison as RouteCompType } from '@/types';
 import { Shield, Clock, AlertTriangle, TrendingDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatMetric } from '@/lib/format';
 
 interface RouteComparisonProps {
   comparison: RouteCompType | null;
@@ -27,6 +28,11 @@ export default function RouteComparison({ comparison }: RouteComparisonProps) {
     ((fastest.total_risk - safest.total_risk) / (fastest.total_risk || 1)) * 100
   );
 
+  // When no lower-risk corridor exists the router returns the same geometry for
+  // both. Badging that as "-0% Risk Reduction" next to a red "Higher Risk" tag
+  // told two contradictory and equally wrong stories.
+  const routesIdentical = riskReduction <= 0;
+
   return (
     <div className="space-y-3">
       {/* Mode Indicator Pill */}
@@ -47,15 +53,21 @@ export default function RouteComparison({ comparison }: RouteComparisonProps) {
           <span className="text-emerald-400 font-semibold text-xs uppercase tracking-wider flex items-center gap-1.5">
             <Shield className="w-4 h-4" /> Safest Route
           </span>
-          <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold text-[10px] flex items-center gap-1">
-            <TrendingDown className="w-3 h-3" /> -{riskReduction}% Risk Reduction
-          </span>
+          {routesIdentical ? (
+            <span className="px-2 py-0.5 rounded bg-white/10 text-white/70 font-semibold text-[10px]">
+              Already lowest risk
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold text-[10px] flex items-center gap-1">
+              <TrendingDown className="w-3 h-3" /> -{riskReduction}% Risk Reduction
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center pt-1">
           <div className="p-2 bg-white/5 rounded-lg border border-white/5">
             <span className="text-[10px] text-white/50 block">Distance</span>
-            <span className="text-sm font-semibold text-white">{safest.distance_km} km</span>
+            <span className="text-sm font-semibold text-white">{formatMetric(safest.distance_km)} km</span>
           </div>
           <div className="p-2 bg-white/5 rounded-lg border border-white/5">
             <span className="text-[10px] text-white/50 block">Est. Time</span>
@@ -65,7 +77,7 @@ export default function RouteComparison({ comparison }: RouteComparisonProps) {
           </div>
           <div className="p-2 bg-white/5 rounded-lg border border-white/5">
             <span className="text-[10px] text-white/50 block">Risk Score</span>
-            <span className="text-sm font-semibold text-emerald-400">{safest.total_risk}</span>
+            <span className="text-sm font-semibold text-emerald-400">{formatMetric(safest.total_risk)}</span>
           </div>
         </div>
       </motion.div>
@@ -81,15 +93,19 @@ export default function RouteComparison({ comparison }: RouteComparisonProps) {
           <span className="text-white/80 font-semibold text-xs uppercase tracking-wider flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-cyan-400" /> Direct Route
           </span>
-          <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-semibold text-[10px]">
-            Higher Risk
+          <span
+            className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
+              routesIdentical ? 'bg-white/10 text-white/70' : 'bg-red-500/20 text-red-400'
+            }`}
+          >
+            {routesIdentical ? 'Same corridor' : 'Higher Risk'}
           </span>
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center pt-1">
           <div className="p-2 bg-white/5 rounded-lg border border-white/5">
             <span className="text-[10px] text-white/50 block">Distance</span>
-            <span className="text-sm font-semibold text-white">{fastest.distance_km} km</span>
+            <span className="text-sm font-semibold text-white">{formatMetric(fastest.distance_km)} km</span>
           </div>
           <div className="p-2 bg-white/5 rounded-lg border border-white/5">
             <span className="text-[10px] text-white/50 block">Est. Time</span>
@@ -99,13 +115,21 @@ export default function RouteComparison({ comparison }: RouteComparisonProps) {
           </div>
           <div className="p-2 bg-white/5 rounded-lg border border-white/5">
             <span className="text-[10px] text-white/50 block">Risk Score</span>
-            <span className="text-sm font-semibold text-red-400">{fastest.total_risk}</span>
+            <span className="text-sm font-semibold text-red-400">{formatMetric(fastest.total_risk)}</span>
           </div>
         </div>
 
-        <div className="text-[11px] text-amber-400 flex items-center gap-1 pt-1">
+        <div
+          className={`text-[11px] flex items-center gap-1 pt-1 ${
+            routesIdentical ? 'text-white/50' : 'text-amber-400'
+          }`}
+        >
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          <span>Passes through identified accident hotspot boundaries.</span>
+          <span>
+            {routesIdentical
+              ? 'No safer alternative found — no blackspot clusters lie on this corridor.'
+              : 'Passes through identified accident hotspot boundaries.'}
+          </span>
         </div>
       </motion.div>
     </div>

@@ -194,3 +194,42 @@ html.light select option {
   scrollbar-width: thin !important;
   scrollbar-color: rgba(0, 212, 255, 0.6) rgba(0, 0, 0, 0.15) !important;
 }
+
+/*
+ * Degraded basemap: when tile requests fail the map surface is otherwise a flat
+ * void, leaving markers and cluster polygons floating with no spatial reference.
+ * A faint graticule restores enough structure to read the overlays against.
+ */
+.rw-map-offline {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.16) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/*
+ * Honour the OS reduce-motion setting for everything framer-motion does not
+ * manage: CSS keyframes, transitions, and Leaflet's own pan/zoom easing.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .leaflet-fade-anim .leaflet-tile,
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+    transition: none !important;
+  }
+}
+
+/* Consistent keyboard focus ring across the interactive surfaces. */
+:where(button, a, input, select, [tabindex]):focus-visible {
+  outline: 2px solid rgb(34 211 238);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
