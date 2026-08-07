@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { AssociationRule } from '@/types';
+import { getAssociationRules } from '@/lib/api';
 import { Network, TrendingUp, Grid, ShieldCheck } from 'lucide-react';
 import AssociationGraph from '@/components/analytics/AssociationGraph';
 import RuleTable from '@/components/analytics/RuleTable';
@@ -10,6 +12,21 @@ import SafetyAuditDrawer from '@/components/analytics/SafetyAuditDrawer';
 
 export default function AnalyticsPage() {
   const [auditOpen, setAuditOpen] = useState(false);
+
+  // Mined once here and shared with both consumers. The graph and the table
+  // each used to fetch independently, and every call POSTs the whole incident
+  // horizon upstream.
+  const [rules, setRules] = useState<AssociationRule[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAssociationRules().then((res) => {
+      if (!cancelled) setRules(res);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="w-full h-full overflow-y-auto p-4 space-y-4 bg-[#0a0a0f]">
@@ -46,7 +63,7 @@ export default function AnalyticsPage() {
               Factor Association Network Topology (FP-Growth)
             </h2>
             <div className="flex-1 relative rounded-xl overflow-hidden">
-              <AssociationGraph />
+              <AssociationGraph rules={rules} />
             </div>
           </motion.div>
 
@@ -61,7 +78,7 @@ export default function AnalyticsPage() {
               <TrendingUp className="w-4 h-4 text-cyan-400" />
               Mined Rule Metrics & Threshold Filters
             </h2>
-            <RuleTable />
+            <RuleTable rules={rules} />
           </motion.div>
         </div>
 

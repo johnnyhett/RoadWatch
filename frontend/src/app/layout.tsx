@@ -4,6 +4,7 @@ import './globals.css';
 import Navbar from '@/components/layout/Navbar';
 import { LocationProvider } from '@/context/LocationContext';
 import { UserPreferencesProvider } from '@/context/UserPreferencesContext';
+import AppShell from '@/components/layout/AppShell';
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -42,7 +43,7 @@ export default function RootLayout({
           <LocationProvider>
             <Navbar />
             <main className="flex-1 relative overflow-hidden">
-              {children}
+              <AppShell>{children}</AppShell>
             </main>
           </LocationProvider>
         </UserPreferencesProvider>

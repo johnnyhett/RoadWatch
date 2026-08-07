@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AssociationRule } from '@/types';
 import { getAssociationRules } from '@/lib/api';
 import { Search } from 'lucide-react';
+import { humanizeFactor } from '@/lib/format';
 
 interface AssociationGraphProps {
   rules?: AssociationRule[];
@@ -11,6 +12,8 @@ interface AssociationGraphProps {
 
 interface Node {
   id: string;
+  /** Readable form of `id`, used for the canvas label and the inspector. */
+  label: string;
   type: 'environment' | 'infrastructure' | 'outcome';
   x: number;
   y: number;
@@ -18,6 +21,12 @@ interface Node {
   vy: number;
   radius: number;
   connections: number;
+}
+
+/** "weather_condition=Raining" -> "Raining"; keeps bare names untouched. */
+function toLabel(raw: string): string {
+  const value = raw.includes('=') ? raw.slice(raw.indexOf('=') + 1) : raw;
+  return humanizeFactor(value);
 }
 
 interface Link {
@@ -69,10 +78,20 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
     const links: Link[] = [];
 
     const getCategory = (factor: string): 'environment' | 'infrastructure' | 'outcome' => {
-      if (['Fatal Severity', 'Serious Injury', 'Multi-Vehicle Collision', 'High Risk', 'Chain Reaction', 'Loss of Control'].includes(factor)) {
+      // Match on the schema prefix the miner emits ("weather_condition=Raining")
+      // and fall back to bare names for locally generated rules.
+      const field = factor.includes('=') ? factor.split('=')[0] : '';
+      const value = factor.includes('=') ? factor.slice(factor.indexOf('=') + 1) : factor;
+
+      if (field === 'severity' || /Fatal|Serious|Slight|Damage|High Risk|Collision|Chain Reaction|Loss of Control|Injury/i.test(value)) {
         return 'outcome';
       }
-      if (['Speeding', 'Wet Surface', 'Raining', 'Drink_Driving', 'Night', 'Darkness', 'Midnight', 'Fatigue'].includes(factor)) {
+      if (
+        field === 'weather_condition' ||
+        field === 'light_condition' ||
+        field === 'road_surface_condition' ||
+        /Speeding|Wet|Rain|Drink|Night|Darkness|Midnight|Fatigue|Fog|Snow|Ice|Weather|Visibility/i.test(value)
+      ) {
         return 'environment';
       }
       return 'infrastructure';
@@ -88,6 +107,7 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
         if (!nodesMap.has(ant)) {
           nodesMap.set(ant, {
             id: ant,
+            label: toLabel(ant),
             type: getCategory(ant),
             x: cx + (Math.random() - 0.5) * 220,
             y: cy + (Math.random() - 0.5) * 180,
@@ -105,6 +125,7 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
         if (!nodesMap.has(cons)) {
           nodesMap.set(cons, {
             id: cons,
+            label: toLabel(cons),
             type: getCategory(cons),
             x: cx + (Math.random() - 0.5) * 220,
             y: cy + (Math.random() - 0.5) * 180,
@@ -242,6 +263,11 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
         node.y = Math.max(pad, Math.min(height - pad, node.y));
       });
 
+      // Label budget: with many nodes, show only the most connected ones.
+      const connectionCounts = nodes.map((n) => n.connections).sort((a, b) => b - a);
+      const labelThreshold =
+        nodes.length <= 12 ? 0 : connectionCounts[Math.min(11, connectionCounts.length - 1)] ?? 0;
+
       // 5. RENDER CANVAS
       ctx.clearRect(0, 0, width, height);
 
@@ -286,11 +312,27 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Draw Label
-        ctx.font = `${isSelected ? 'bold 12px' : '11px'} "Inter", sans-serif`;
-        ctx.fillStyle = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.85)';
-        ctx.textAlign = 'center';
-        ctx.fillText(node.id, node.x, node.y + node.radius + 14);
+        // Draw Label -- only for the better-connected nodes unless this one is
+        // selected or matched, otherwise dense graphs render an unreadable mat.
+        const showLabel = isSelected || isMatched || node.connections >= labelThreshold;
+        if (showLabel) {
+          ctx.font = `${isSelected ? 'bold 12px' : '11px'} "Inter", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
+          const ly = node.y + node.radius + 13;
+          const tw = ctx.measureText(node.label).width;
+
+          // Contrast plate so text stays legible over links and other nodes.
+          ctx.fillStyle = 'rgba(9, 13, 20, 0.78)';
+          ctx.beginPath();
+          ctx.roundRect(node.x - tw / 2 - 5, ly - 8, tw + 10, 16, 5);
+          ctx.fill();
+
+          ctx.fillStyle = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.88)';
+          ctx.fillText(node.label, node.x, ly);
+          ctx.textBaseline = 'alphabetic';
+        }
       });
 
       animationRef.current = requestAnimationFrame(runPhysicsAndRender);
@@ -383,7 +425,7 @@ export default function AssociationGraph({ rules: propRules }: AssociationGraphP
       {selectedNode && (
         <div className="absolute bottom-3 left-3 bg-[#0d1117]/95 backdrop-blur-xl border border-cyan-500/30 p-3 rounded-xl z-10 max-w-xs shadow-2xl space-y-1">
           <div className="flex items-center justify-between">
-            <strong className="text-xs text-cyan-300 font-bold font-heading">{selectedNode.id}</strong>
+            <strong className="text-xs text-cyan-300 font-bold font-heading">{selectedNode.label}</strong>
             <span className="text-[10px] text-white/50 font-mono">
               {selectedNode.type.toUpperCase()}
             </span>

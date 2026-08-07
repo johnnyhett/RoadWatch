@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -8,54 +8,123 @@ import { MAP_CONFIG } from '@/lib/constants';
 import { Incident, Blackspot, RouteDetails, UserLocation } from '@/types';
 import { useUserPreferences } from '@/context/UserPreferencesContext';
 import { humanizeFactor, formatMetric, formatScore } from '@/lib/format';
+import { Plus, Minus, Crosshair, WifiOff } from 'lucide-react';
 
-// Failproof Map Controller — Monitors DOM container resizes to guarantee 100% viewport tile coverage
-function MapController({ center, zoom }: { center?: [number, number]; zoom?: number }) {
+/**
+ * Keeps Leaflet's cached container size in sync with the DOM.
+ *
+ * Mount-scoped on purpose: this used to share an effect with the camera, so
+ * every fly-to tore down and rebuilt the ResizeObserver and re-ran the
+ * settle timers.
+ */
+function MapResizeHandler() {
   const map = useMap();
 
   useEffect(() => {
     if (!map) return;
 
-    // Force recalculate Leaflet container bounds across Next.js layout render cycles
     const invalidate = () => {
       try {
         map.invalidateSize({ animate: false, pan: false });
       } catch {}
     };
 
+    // Next.js lays out the panels over several frames; re-measure as it settles.
     invalidate();
-    const timer1 = setTimeout(invalidate, 100);
-    const timer2 = setTimeout(invalidate, 400);
-    const timer3 = setTimeout(invalidate, 1000);
+    const timers = [100, 400, 1000].map((ms) => setTimeout(invalidate, ms));
 
     const container = map.getContainer();
     let resizeObserver: ResizeObserver | null = null;
     if (container && typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(() => {
-        invalidate();
-      });
+      resizeObserver = new ResizeObserver(invalidate);
       resizeObserver.observe(container);
     }
 
-    if (center && center[0] !== 0 && center[1] !== 0) {
-      map.flyTo(center, zoom || 14, {
-        animate: true,
-        duration: 0.8,
-        easeLinearity: 0.25,
-      });
+    return () => {
+      timers.forEach(clearTimeout);
+      resizeObserver?.disconnect();
+    };
+  }, [map]);
+
+  return null;
+}
+
+/** Metres below which a requested camera move is treated as already there. */
+const FLY_THRESHOLD_M = 25;
+
+/**
+ * Animates the camera to `center`, skipping moves that would not visibly
+ * change the view (which previously replayed the fly animation on unrelated
+ * re-renders).
+ */
+function MapCameraController({ center, zoom = 14 }: { center?: [number, number]; zoom?: number }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !center) return;
+    const [lat, lng] = center;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (lat === 0 && lng === 0) return;
+
+    const target = L.latLng(lat, lng);
+    if (map.distance(map.getCenter(), target) < FLY_THRESHOLD_M && map.getZoom() === zoom) {
+      return;
     }
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      if (resizeObserver && container) {
-        resizeObserver.unobserve(container);
-      }
-    };
+    map.flyTo(target, zoom, { animate: true, duration: 1.1, easeLinearity: 0.22 });
   }, [center, zoom, map]);
 
   return null;
+}
+
+/**
+ * Toggles the degraded-basemap backdrop on the live container element.
+ *
+ * react-leaflet builds the container div once and does not re-apply its
+ * `className` prop afterwards, so the class has to be set imperatively.
+ */
+function OfflineBackdrop({ offline }: { offline: boolean }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const el = map?.getContainer();
+    if (!el) return;
+    el.classList.toggle('rw-map-offline', offline);
+    return () => el.classList.remove('rw-map-offline');
+  }, [map, offline]);
+
+  return null;
+}
+
+/** Accessible zoom / recentre controls (Leaflet's default set is disabled). */
+function MapControls({ home }: { home: [number, number] }) {
+  const map = useMap();
+  const btn =
+    'w-8 h-8 flex items-center justify-center rounded-lg glass-panel text-white/80 hover:text-cyan-300 ' +
+    'hover:border-cyan-500/40 transition-all shadow-lg text-sm font-bold focus:outline-none ' +
+    'focus-visible:ring-2 focus-visible:ring-cyan-400';
+
+  return (
+    <div className="leaflet-top leaflet-right" style={{ pointerEvents: 'none' }}>
+      <div className="leaflet-control flex flex-col gap-1.5" style={{ pointerEvents: 'auto', marginTop: 12, marginRight: 12 }}>
+        <button type="button" aria-label="Zoom in" title="Zoom in" className={btn} onClick={() => map.zoomIn()}>
+          <Plus className="w-4 h-4" />
+        </button>
+        <button type="button" aria-label="Zoom out" title="Zoom out" className={btn} onClick={() => map.zoomOut()}>
+          <Minus className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          aria-label="Recentre map"
+          title="Recentre map"
+          className={btn}
+          onClick={() => map.flyTo(home, 14, { animate: true, duration: 1.1 })}
+        >
+          <Crosshair className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 const createPinIcon = (color: string, label: string) => {
@@ -141,6 +210,19 @@ export default function AppMap({
   flyToCoords = null,
 }: MapProps) {
   const { themeMode, mapStyle } = useUserPreferences();
+  const [tilesOffline, setTilesOffline] = useState(false);
+
+  // A few misses at the edge of a pan are normal; a sustained run with nothing
+  // loading means the basemap is genuinely unreachable.
+  const tileErrorsRef = useRef(0);
+  const handleTileError = useCallback(() => {
+    tileErrorsRef.current += 1;
+    if (tileErrorsRef.current >= 4) setTilesOffline(true);
+  }, []);
+  const handleTileLoad = useCallback(() => {
+    tileErrorsRef.current = 0;
+    setTilesOffline(false);
+  }, []);
 
   // Dynamic Tile URL based on the selected base map / theme.
   const { url: currentTileUrl, attribution: currentAttribution } = useMemo(() => {
@@ -164,6 +246,11 @@ export default function AppMap({
     }
     return { url: MAP_CONFIG.tileLayer, attribution: MAP_CONFIG.attribution }; // CartoDB Dark
   }, [themeMode, mapStyle]);
+
+  const homeCenter: [number, number] = useMemo(
+    () => (userLocation ? [userLocation.latitude, userLocation.longitude] : MAP_CONFIG.center),
+    [userLocation]
+  );
 
   const activeCenter: [number, number] = useMemo(() => {
     if (flyToCoords) return flyToCoords;
@@ -198,10 +285,38 @@ export default function AppMap({
         url={currentTileUrl}
         attribution={currentAttribution}
         maxZoom={19}
+        // Bound on the layer: GridLayer fires these on itself and Leaflet does
+        // not propagate them up to the map instance.
+        eventHandlers={{
+          tileerror: handleTileError,
+          tileload: handleTileLoad,
+        }}
       />
 
-      {/* Failproof Camera FlyTo & ResizeObserver Controller */}
-      <MapController center={activeCenter} zoom={14} />
+      {/* Camera, container-size and basemap-health controllers */}
+      <MapResizeHandler />
+      <OfflineBackdrop offline={tilesOffline} />
+      <MapCameraController center={activeCenter} zoom={14} />
+      <MapControls home={homeCenter} />
+
+      {/* Basemap outage notice */}
+      {tilesOffline && (
+        <div className="leaflet-bottom leaflet-left" style={{ pointerEvents: 'none' }}>
+          <div
+            className="leaflet-control glass-panel rounded-xl px-3 py-2 flex items-center gap-2 shadow-xl max-w-[280px]"
+            style={{ pointerEvents: 'auto', marginBottom: 24, marginLeft: 12 }}
+            role="status"
+          >
+            <WifiOff className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-white leading-tight">Basemap tiles unavailable</p>
+              <p className="text-[10px] text-white/60 font-mono leading-tight">
+                Overlays and analytics remain accurate.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* User Location & Surrounding Area Radius */}
       {userLocation && (
@@ -253,7 +368,7 @@ export default function AppMap({
       {/* Layer 2: High-Risk Cluster Polygons */}
       {showBlackspots &&
         blackspots.map((b) => (
-          <g key={`blackspot-${b.cluster_id}`}>
+          <Fragment key={`blackspot-${b.cluster_id}`}>
             {b.bounds && b.bounds.length >= 3 && (
               <Polygon
                 positions={b.bounds}
@@ -295,7 +410,7 @@ export default function AppMap({
                 </Popup>
               </Polygon>
             )}
-          </g>
+          </Fragment>
         ))}
 
       {/* Layer 3: Safest vs Direct Route Polylines */}
@@ -361,7 +476,11 @@ export default function AppMap({
                       className={`font-semibold px-2 py-0.5 rounded text-[10px] ${
                         incident.severity === 1
                           ? 'bg-red-500/20 text-red-400'
-                          : 'bg-orange-500/20 text-orange-400'
+                          : incident.severity === 2
+                          ? 'bg-orange-500/20 text-orange-400'
+                          : incident.severity === 3
+                          ? 'bg-yellow-500/20 text-yellow-300'
+                          : 'bg-emerald-500/20 text-emerald-400'
                       }`}
                     >
                       {sevLabel}
@@ -369,10 +488,10 @@ export default function AppMap({
                   </div>
 
                   <div className="grid grid-cols-2 gap-1 text-[11px]">
-                    <div><span className="text-white/40">Weather:</span> {incident.weather_condition}</div>
-                    <div><span className="text-white/40">Road:</span> {incident.road_surface_condition}</div>
-                    <div><span className="text-white/40">Light:</span> {incident.light_condition}</div>
-                    <div><span className="text-white/40">Speed:</span> {incident.speed_limit} mph</div>
+                    <div><span className="text-white/40">Weather:</span> {humanizeFactor(incident.weather_condition)}</div>
+                    <div><span className="text-white/40">Road:</span> {humanizeFactor(incident.road_surface_condition)}</div>
+                    <div><span className="text-white/40">Light:</span> {humanizeFactor(incident.light_condition)}</div>
+                    <div><span className="text-white/40">Speed:</span> {incident.speed_limit} km/h</div>
                   </div>
                 </div>
               </Popup>

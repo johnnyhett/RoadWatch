@@ -90,9 +90,10 @@ export default function StatsGrid() {
         const Icon = stat.icon;
         return (
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05, duration: 0.4 }}
+            initial={{ opacity: 0, y: 15, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            whileHover={{ y: -2 }}
+            transition={{ delay: i * 0.06, duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
             key={stat.title}
             className="glass-card p-3 flex flex-col gap-2 relative overflow-hidden bg-[#0d1117]/90 border-white/15"
           >
