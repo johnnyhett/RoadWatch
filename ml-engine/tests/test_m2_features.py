@@ -218,3 +218,59 @@ def test_fastapi_m2_endpoints():
     if len(bs_data["blackspots"]) > 0:
         bounds = bs_data["blackspots"][0]["bounds"]
         assert len(bounds) == 6
+
+
+# ---------------------------------------------------------------------------
+# Hardening: input bounds and error handling on the unauthenticated endpoints
+# ---------------------------------------------------------------------------
+
+class TestEndpointHardening:
+    """Bounds and error handling on the unauthenticated analytical endpoints."""
+
+    @pytest.fixture(autouse=True)
+    def _client(self):
+        self.client = TestClient(app)
+
+    def test_oversized_incident_payload_is_rejected(self):
+        import main
+        big = [{"latitude": 5.6, "longitude": -0.2, "severity": 3}] * (main.MAX_INCIDENTS_PER_REQUEST + 1)
+        resp = self.client.post("/api/v1/clustering/blackspots", json={"incidents": big, "min_cluster_size": 5})
+        assert resp.status_code == 413
+
+    def test_training_batch_is_bounded(self):
+        import main
+        big = [{"latitude": 5.6, "longitude": -0.2, "severity": 3}] * (main.MAX_TRAINING_RECORDS_PER_REQUEST + 1)
+        resp = self.client.post("/api/v1/ml/train", json={"records": big})
+        assert resp.status_code == 413
+
+    def test_out_of_range_coordinates_are_rejected(self):
+        resp = self.client.post(
+            "/api/v1/routing/safest",
+            json={"origin": [999.0, -1.6], "destination": [6.7, -1.6]},
+        )
+        assert resp.status_code == 422
+
+    def test_grid_resolution_is_clamped(self):
+        # An unbounded resolution lets a caller request a resolution^2 matrix.
+        resp = self.client.post(
+            "/api/v1/density/heatmap",
+            json={"incidents": [{"latitude": 5.6 + i * 0.001, "longitude": -0.2, "severity": 3} for i in range(20)],
+                  "grid_resolution": 100000},
+        )
+        assert resp.status_code == 200
+        assert len(resp.json()["grid"]["density_matrix"]) <= 500
+
+    def test_cors_allow_list_excludes_unknown_origins(self):
+        allowed = self.client.get("/api/v1/temporal/patterns", headers={"Origin": "http://localhost:3000"})
+        assert allowed.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+        blocked = self.client.get("/api/v1/temporal/patterns", headers={"Origin": "https://evil.example.com"})
+        assert "access-control-allow-origin" not in blocked.headers
+
+    def test_prediction_failure_does_not_leak_internals(self):
+        resp = self.client.post("/api/v1/prediction/risk", json={"features": {"speed_limit": "not-a-number"}})
+        assert resp.status_code in (200, 422)
+        body = resp.json()
+        # Whichever path it takes, no raw exception text should reach the self.client.
+        assert "Traceback" not in str(body)
+        assert "site-packages" not in str(body)

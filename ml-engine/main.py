@@ -35,13 +35,41 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Allow-list rather than a wildcard. Starlette echoes the caller's Origin when
+# allow_origins=["*"] is paired with allow_credentials=True, which lets any page
+# on the internet issue credentialed requests to this service and read the
+# responses (CWE-942).
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "ROADWATCH_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080",
+    ).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Guard rails for the unauthenticated analytical endpoints. Every one of these
+# accepts a caller-supplied list, and the clustering/mining work is superlinear
+# in its length, so an unbounded body is a denial-of-service lever.
+MAX_INCIDENTS_PER_REQUEST = int(os.environ.get("ROADWATCH_MAX_INCIDENTS", "50000"))
+MAX_TRAINING_RECORDS_PER_REQUEST = int(os.environ.get("ROADWATCH_MAX_TRAIN_RECORDS", "20000"))
+MAX_DATASET_RECORDS = int(os.environ.get("ROADWATCH_MAX_DATASET", "200000"))
+
+
+def _reject_oversized(incidents: List[Dict[str, Any]], limit: int = MAX_INCIDENTS_PER_REQUEST) -> None:
+    if len(incidents) > limit:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Payload too large: {len(incidents)} incidents exceeds the {limit} limit.",
+        )
 
 # Global instances
 dataset = []
@@ -80,12 +108,32 @@ class TrainRequest(BaseModel):
 
 @app.post("/api/v1/ml/train")
 async def train_models_endpoint(req: TrainRequest):
+    """
+    Retrain the ensemble.
+
+    Note this endpoint mutates shared analytical state: submitted records join
+    the in-memory horizon and influence every later prediction. It is bounded
+    both per request and in total so it cannot be used to exhaust memory, but it
+    is still an operator-level operation and should sit behind authentication
+    before this service is exposed beyond a trusted network.
+    """
     global dataset
     if req.records and len(req.records) > 0:
+        _reject_oversized(req.records, MAX_TRAINING_RECORDS_PER_REQUEST)
+        if len(dataset) + len(req.records) > MAX_DATASET_RECORDS:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Training corpus limit of {MAX_DATASET_RECORDS} records reached.",
+            )
         normalized = [convert_to_unified(r, req.schema_type or "GHANA_NRSA") for r in req.records]
         dataset.extend(normalized)
         df = pd.DataFrame(dataset)
-        risk_model.train(df)
+        try:
+            risk_model.train(df)
+        except ValueError as exc:
+            # Roll back so a malformed batch cannot leave the horizon polluted.
+            del dataset[-len(normalized):]
+            raise HTTPException(status_code=422, detail=f"Unusable training batch: {exc}") from exc
         return {"status": "SUCCESS", "records_trained": len(dataset), "message": "ML ensemble retrained on new real collision data."}
     else:
         load_and_train_real_data()
@@ -99,8 +147,14 @@ class ClusteringRequest(BaseModel):
 @app.post("/api/v1/analytics/blackspots")
 @app.post("/api/v1/ml/cluster")
 async def get_blackspots(req: ClusteringRequest):
-    detector = BlackspotDetector(min_cluster_size=req.min_cluster_size)
-    return detector.detect(req.incidents, req.min_cluster_size)
+    _reject_oversized(req.incidents)
+    # HDBSCAN requires min_cluster_size >= 2; 0 or negative raises deep inside
+    # the library and surfaces as an opaque 500. Only the lower bound is
+    # enforced -- clamping down to the payload size would silently weaken the
+    # caller's threshold and invent clusters they asked to exclude.
+    min_cluster_size = max(2, req.min_cluster_size)
+    detector = BlackspotDetector(min_cluster_size=min_cluster_size)
+    return detector.detect(req.incidents, min_cluster_size)
 
 class ClimateValidateRequest(BaseModel):
     incidents: List[Dict[str, Any]]
@@ -108,6 +162,7 @@ class ClimateValidateRequest(BaseModel):
 @app.post("/api/v1/ml/climate-validate")
 @app.post("/api/v1/climate-validate")
 async def validate_climate(req: ClimateValidateRequest):
+    _reject_oversized(req.incidents)
     return ClimateAndLandValidator.validate_and_sanitize(req.incidents)
 
 class DensityRequest(BaseModel):
@@ -117,8 +172,12 @@ class DensityRequest(BaseModel):
 @app.post("/api/v1/density/heatmap")
 @app.post("/api/v1/analytics/heatmap")
 async def get_heatmap(req: DensityRequest):
+    _reject_oversized(req.incidents)
+    # The response is a grid_resolution^2 matrix, so an unbounded value lets a
+    # caller ask for an arbitrarily large response body.
+    resolution = max(10, min(req.grid_resolution, 500))
     estimator = DensityEstimator()
-    return estimator.generate_heatmap(req.incidents, req.grid_resolution)
+    return estimator.generate_heatmap(req.incidents, resolution)
 
 class AssociationRequest(BaseModel):
     incidents: List[Dict[str, Any]]
@@ -128,8 +187,13 @@ class AssociationRequest(BaseModel):
 @app.post("/api/v1/association/rules")
 @app.post("/api/v1/analytics/associations")
 async def get_rules(req: AssociationRequest):
+    _reject_oversized(req.incidents)
+    # FP-Growth is exponential in the number of frequent itemsets; a min_support
+    # at or near zero makes the miner enumerate essentially every combination.
+    min_support = min(max(req.min_support, 0.01), 1.0)
+    min_confidence = min(max(req.min_confidence, 0.0), 1.0)
     miner = AssociationMiner()
-    return miner.mine_rules(req.incidents, req.min_support, req.min_confidence)
+    return miner.mine_rules(req.incidents, min_support, min_confidence)
 
 class PredictionRequest(BaseModel):
     features: Dict[str, Any]
@@ -138,7 +202,12 @@ class PredictionRequest(BaseModel):
 @app.post("/api/v1/predictions/risk")
 @app.post("/api/v1/ml/classify-risk")
 async def get_risk(req: PredictionRequest):
-    return risk_model.predict(req.features)
+    result = risk_model.predict(req.features)
+    # predict() reports failure in-band; returning that as 200 tells every
+    # client the call succeeded and leaks the raw exception text.
+    if "error" in result:
+        raise HTTPException(status_code=422, detail="Unable to score the supplied features.")
+    return result
 
 class RoutingRequest(BaseModel):
     origin: List[float] # [lat, lng]
@@ -146,10 +215,22 @@ class RoutingRequest(BaseModel):
     alpha: float = 0.5
     beta: float = 0.5
 
+def _validate_coord(point: List[float], name: str) -> None:
+    if len(point) < 2:
+        raise HTTPException(status_code=422, detail=f"{name} must be [latitude, longitude].")
+    lat, lng = point[0], point[1]
+    if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lng <= 180.0):
+        raise HTTPException(status_code=422, detail=f"{name} is outside valid WGS84 bounds.")
+
+
 @app.post("/api/v1/routing/safest")
 @app.post("/api/v1/routes/safest")
 async def get_safest_route(req: RoutingRequest):
-    safe, fast = router.calculate_route(req.origin, req.destination, req.alpha, req.beta)
+    _validate_coord(req.origin, "origin")
+    _validate_coord(req.destination, "destination")
+    alpha = min(max(req.alpha, 0.0), 1.0)
+    beta = min(max(req.beta, 0.0), 1.0)
+    safe, fast = router.calculate_route(req.origin, req.destination, alpha, beta)
     if not safe or not fast:
         raise HTTPException(status_code=404, detail="Route not found")
     return {"safest_route": safe, "fastest_route": fast}
@@ -271,4 +352,10 @@ async def generate_safety_audit(req: SafetyAuditRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    # Loopback by default. This service has no authentication and exposes a
+    # state-mutating training endpoint, so binding every interface would put it
+    # on the local network for anyone to reach. Override deliberately.
+    host = os.environ.get("ROADWATCH_ML_HOST", "127.0.0.1")
+    port = int(os.environ.get("ROADWATCH_ML_PORT", "8000"))
+    uvicorn.run(app, host=host, port=port)

@@ -1,8 +1,12 @@
+import logging
+
 import pandas as pd
 import numpy as np
 import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
+
+log = logging.getLogger(__name__)
 
 # Normalized severity codes shared across the ingestion schemas.
 SEVERITY_LABELS = {1: "Fatal", 2: "Serious", 3: "Slight", 4: "Damage Only"}
@@ -158,8 +162,11 @@ class RiskModel:
                 "feature_importance": self._feature_importance(),
                 "recommended_mitigations": recommendations
             }
-        except Exception as e:
-            return {"error": str(e)}
+        except Exception:
+            # Logged with the trace server-side; the caller gets a flag only, so
+            # internal types and paths are not echoed back over the API.
+            log.exception("Risk prediction failed")
+            return {"error": "prediction_failed"}
 
     def _feature_importance(self) -> dict:
         """Normalized gain-based attribution from the trained XGBoost booster."""

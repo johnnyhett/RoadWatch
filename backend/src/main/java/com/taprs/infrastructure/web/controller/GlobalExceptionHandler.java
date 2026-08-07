@@ -11,6 +11,9 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +31,8 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private static Map<String, Object> body(HttpStatusCode status, String error) {
         Map<String, Object> response = new HashMap<>();
@@ -53,22 +58,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(body(HttpStatus.BAD_REQUEST, message == null ? ex.getClass().getSimpleName() : message));
     }
 
-    /** A downstream analytics outage is 503, not a fault in this service. */
+    /**
+     * A downstream analytics outage is 503, not a fault in this service. The
+     * message carries the upstream URL and failure cause, so it stays in the log.
+     */
     @ExceptionHandler(MlEngineUnavailableException.class)
     public ResponseEntity<Map<String, Object>> handleMlEngineUnavailable(MlEngineUnavailableException ex) {
+        log.warn("ML engine unavailable: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(body(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage()));
+                .body(body(HttpStatus.SERVICE_UNAVAILABLE, "Analytics engine unavailable"));
     }
 
-    /** Genuine unexpected faults. */
+    /**
+     * Genuine unexpected faults.
+     *
+     * <p>The detail is logged, not returned. Echoing {@code ex.getMessage()} to
+     * the caller discloses internals -- absolute paths, driver and library
+     * messages, upstream URLs -- to anyone able to trigger a fault.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleAllExceptions(Exception ex) {
-        // getMessage() is null for many exception types (e.g. NullPointerException),
-        // which would serialize an error body with no usable detail.
-        String message = ex.getMessage();
-        String detail = (message == null || message.isBlank()) ? ex.getClass().getSimpleName() : message;
+        log.error("Unhandled exception serving request", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(body(HttpStatus.INTERNAL_SERVER_ERROR, detail));
+                .body(body(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error"));
     }
 
     /**
@@ -80,8 +92,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                              HttpHeaders headers, HttpStatusCode status,
                                                              WebRequest request) {
         if (providedBody == null) {
-            String message = ex.getMessage();
-            String detail = (message == null || message.isBlank()) ? ex.getClass().getSimpleName() : message;
+            // 4xx detail describes what the caller got wrong and is safe to
+            // return; 5xx detail describes this service and is not.
+            String detail;
+            if (status.is5xxServerError()) {
+                log.error("Framework exception serving request", ex);
+                detail = "Internal server error";
+            } else {
+                String message = ex.getMessage();
+                detail = (message == null || message.isBlank()) ? ex.getClass().getSimpleName() : message;
+            }
             return ResponseEntity.status(status).headers(headers).body(body(status, detail));
         }
         return super.handleExceptionInternal(ex, providedBody, headers, status, request);

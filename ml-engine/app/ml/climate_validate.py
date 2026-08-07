@@ -4,7 +4,19 @@ Climate & Land Bounds Validation Engine for ML Microservice
 
 import sys
 import os
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Optional, Tuple
+
+
+def _coord(value: Any) -> Optional[float]:
+    """Coerce a caller-supplied coordinate, or None when it is not finite."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed != parsed or parsed in (float("inf"), float("-inf")):  # NaN / inf
+        return None
+    return parsed
+
 
 # Import shared or local land bounds and climate rules
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data"))
@@ -68,8 +80,21 @@ class ClimateAndLandValidator:
         violations_log = []
 
         for inc in incidents:
-            lat = float(inc.get("latitude", 0.0))
-            lng = float(inc.get("longitude", 0.0))
+            if not isinstance(inc, dict):
+                rejected_records.append(inc)
+                violations_log.append("Malformed record: expected an object.")
+                continue
+
+            lat = _coord(inc.get("latitude"))
+            lng = _coord(inc.get("longitude"))
+            if lat is None or lng is None:
+                # Unparseable coordinates are rejected rather than raising: these
+                # records come from unauthenticated callers, and a bare float()
+                # would fail the whole batch with a 500.
+                rejected_records.append(inc)
+                violations_log.append("Malformed record: latitude/longitude are not finite numbers.")
+                continue
+
             city = inc.get("district") or inc.get("region")
 
             # 1. Land Boundary Verification

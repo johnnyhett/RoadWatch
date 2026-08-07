@@ -44,6 +44,22 @@ class CorsConfigTest {
     }
 
     @Test
+    @DisplayName("an unlisted origin is refused")
+    void unlistedOriginIsRefused() throws Exception {
+        // Wildcard origin patterns combined with allowCredentials would echo any
+        // Origin back and permit cookies with it, letting any site on the
+        // internet read this API on a visitor's behalf (CWE-942).
+        mockMvc.perform(options("/api/v1/incidents/")
+                .header("Origin", "https://evil.example.com")
+                .header("Access-Control-Request-Method", "GET"))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/incidents/stats")
+                .header("Origin", "https://evil.example.com"))
+            .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    @Test
     @DisplayName("a same-origin request receives no CORS headers")
     void sameOriginRequestHasNoCorsHeaders() throws Exception {
         // Without an Origin header this is not a CORS request, and the spec
