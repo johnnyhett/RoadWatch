@@ -274,3 +274,27 @@ class TestEndpointHardening:
         # Whichever path it takes, no raw exception text should reach the self.client.
         assert "Traceback" not in str(body)
         assert "site-packages" not in str(body)
+
+    def test_malformed_columns_do_not_fault(self):
+        """Records from unauthenticated callers may omit or mistype any field."""
+        base = {"latitude": 5.60, "longitude": -0.19, "severity": 3,
+                "timestamp": "2024-01-01T12:00:00", "weather_condition": "Clear",
+                "road_surface_condition": "Dry", "light_condition": "Daylight",
+                "road_classification": "A_Road", "speed_limit": 50,
+                "junction_detail": "Crossroads", "contributing_factors": ["Speeding"]}
+
+        variants = [
+            [{k: v for k, v in base.items() if k != "severity"} for _ in range(8)],
+            [{k: v for k, v in base.items() if k != "latitude"} for _ in range(8)],
+            [{**base, "severity": "not-a-number"} for _ in range(8)],
+            [{**base, "latitude": "not-a-number"} for _ in range(8)],
+            [{**base, "latitude": None} for _ in range(8)],
+            [{**base, "contributing_factors": None} for _ in range(8)],
+        ]
+
+        for incidents in variants:
+            for path in ("/api/v1/density/heatmap",
+                         "/api/v1/clustering/blackspots",
+                         "/api/v1/association/rules"):
+                resp = self.client.post(path, json={"incidents": incidents})
+                assert resp.status_code < 500, f"{path} faulted on {incidents[0]}"
